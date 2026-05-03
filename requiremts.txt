@@ -1,0 +1,5 @@
+streamlit
+lightkurve
+astropy
+matplotlib
+numpy
