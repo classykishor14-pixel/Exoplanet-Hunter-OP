@@ -242,7 +242,7 @@ def clear_cache():
             path.mkdir(parents=True, exist_ok=True)
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_resource(show_spinner=False)
 def fetch_and_clean(target: str, quarter: int):
     """
     Full Stage 1+2 pipeline cached by Streamlit.
