@@ -60,8 +60,8 @@ C_ANNO    = "#ffe66d"
 # =============================================================================
 
 st.set_page_config(
-    page_title="Exoplanet Hunter",
-    page_icon="🔭",
+    page_title="Exoplanet Detector",
+    page_icon="🪐",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -710,62 +710,3 @@ st.markdown(f"""
   Depth {best_depth*1e6:.0f} ppm ·
   Data: NASA MAST / Kepler Mission
 </div>""", unsafe_allow_html=True)
-# --- PERSONAL BRANDING & CLASSIFICATION ---
-st.sidebar.markdown("---")
-st.sidebar.write("🚀 **Developed by Kishore (Kai)**")
-st.sidebar.write("Target: MIT Class of 2031 | Astrophysics & AeroEng")
-
-# This part assumes you have a variable named 'planet_radius_earth' 
-# If not, we calculate it here (Star Radius * sqrt(depth) * 109.2)
-try:
-    # Most lightkurve objects have star metadata
-    st_radius = lc_clean.meta.get('RADIUS', 1.0) 
-    # 'depth' comes from your BLS result
-    p_radius = np.sqrt(results.transit_depth[0]) * st_radius * 109.2
-    
-    st.sidebar.subheader("🪐 Planet Stats")
-    st.sidebar.metric("Estimated Size", f"{p_radius:.2f} x Earth")
-
-    # Classification Logic
-    if p_radius < 1.25:
-        st.sidebar.success("Category: Rocky Planet (Earth-like size)")
-    elif 1.25 <= p_radius < 2.0:
-        st.sidebar.info("Category: Super-Earth")
-    elif 2.0 <= p_radius < 4.0:
-        st.sidebar.warning("Category: Mini-Neptune (Gas/Water World)")
-    else:
-        st.sidebar.error("Category: Gas Giant (Jupiter-class)")
-        
-except Exception as e:
-    st.sidebar.write("Search for a star to see Planet Stats")
-
-    # --- PERSONAL BRANDING & CLASSIFICATION ---
-st.sidebar.markdown("---")
-st.sidebar.write("🚀 **Developed by Kishore (Kai)**")
-st.sidebar.write("Target: MIT Class of 2031 | Astrophysics & AeroEng")
-
-# Planet Classifier Logic
-try:
-    # This pulls the star radius from the NASA data metadata
-    st_radius = lc_clean.meta.get('RADIUS', 1.0) 
-    
-    # This calculates the radius based on how much light the planet blocks
-    # results.transit_depth[0] is the depth of the tallest peak in the BLS periodogram
-    p_radius = np.sqrt(results.transit_depth[0]) * st_radius * 109.2
-    
-    st.sidebar.subheader("🪐 Planet Stats")
-    st.sidebar.metric("Estimated Size", f"{p_radius:.2f} x Earth")
-
-    # Classification logic for your portfolio
-    if p_radius < 1.25:
-        st.sidebar.success("Category: Rocky Planet")
-    elif 1.25 <= p_radius < 2.0:
-        st.sidebar.info("Category: Super-Earth")
-    elif 2.0 <= p_radius < 4.0:
-        st.sidebar.warning("Category: Mini-Neptune")
-    else:
-        st.sidebar.error("Category: Gas Giant")
-        
-except:
-    # This shows before the user hits "Search"
-    st.sidebar.info("Search for a star to see Planet Stats")
