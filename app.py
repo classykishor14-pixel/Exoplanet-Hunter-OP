@@ -59,18 +59,12 @@ C_ANNO    = "#ffe66d"
 # PAGE CONFIG
 # =============================================================================
 
-
-# MUST BE THE FIRST STREAMLIT COMMAND
 st.set_page_config(
-    page_title="Exoplanet Detector",
-    page_icon="🪐", 
+    page_title="Exoplanet Hunter",
+    page_icon="🔭",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",   # always start expanded
 )
-
-# Use this to force the sidebar open if it gets stuck
-if 'sidebar_state' not in st.session_state:
-    st.session_state.sidebar_state = 'expanded'
 
 # ── Custom CSS ─────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -78,10 +72,33 @@ st.markdown("""
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Exo+2:wght@300;400;600;800&display=swap');
 
   .stApp { background: #060a14; }
+
+  /* ── SIDEBAR FIX: force sidebar to always stay visible ── */
+  /* Show the sidebar panel itself at all times */
   section[data-testid="stSidebar"] {
       background: #0a0f1e !important;
       border-right: 1px solid #1e2d50;
+      min-width: 260px !important;
+      max-width: 320px !important;
+      transform: none !important;       /* prevent slide-out animation */
+      visibility: visible !important;
+      display: block !important;
   }
+  /* Hide the collapse arrow button that lets users close the sidebar */
+  button[data-testid="collapsedControl"],
+  [data-testid="collapsedControl"] {
+      display: none !important;
+  }
+  /* Also hide the ›/‹ chevron toggle that appears on hover */
+  .css-1lcbmhc, .css-1d391kg,
+  [data-testid="stSidebarCollapseButton"] {
+      display: none !important;
+  }
+  /* Ensure the main content area doesn't expand to fill sidebar space */
+  .main .block-container {
+      max-width: calc(100% - 280px) !important;
+  }
+
   html, body, [class*="css"] { font-family: 'Exo 2', sans-serif; color: #c8d8f0; }
 
   .hero-title {
@@ -171,6 +188,26 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ── Session-state sidebar lock ────────────────────────────────────────────────
+# Forces sidebar to stay "expanded" on every script rerun.
+# Belt-and-suspenders: CSS hides the close button AND this resets state.
+if "sidebar_state" not in st.session_state:
+    st.session_state.sidebar_state = "expanded"
+
+# JS: hide collapse button + lock sidebar width after DOM loads
+st.markdown("""
+<script>
+window.addEventListener('load', function() {
+    setTimeout(function() {
+        var btn = document.querySelector('[data-testid="collapsedControl"]');
+        if (btn) { btn.style.display = 'none'; }
+        var sb = document.querySelector('[data-testid="stSidebar"]');
+        if (sb) { sb.style.minWidth = '260px'; sb.style.transform = 'none'; }
+    }, 600);
+});
+</script>
+""", unsafe_allow_html=True)
+
 
 # =============================================================================
 # HELPERS — MATPLOTLIB THEME
@@ -205,7 +242,7 @@ def clear_cache():
             path.mkdir(parents=True, exist_ok=True)
 
 
-@st.cache_resource(show_spinner=False)
+@st.cache_data(show_spinner=False)
 def fetch_and_clean(target: str, quarter: int):
     """
     Full Stage 1+2 pipeline cached by Streamlit.
@@ -276,13 +313,9 @@ def run_bls_cached(time_arr, flux_arr, err_arr):
 
 def phase_fold_arrays(time, flux, flux_err, period, t0):
     """Fold and bin using lightkurve, return plain arrays."""
-    from astropy.time import Time
-    time_obj = Time(time, format="bkjd")
-    
     lc_tmp = lk.LightCurve(
-        time=time_obj, 
-        flux=flux, 
-        flux_err=flux_err
+        time=lk.time.Time(time, format="bkjd"),
+        flux=flux, flux_err=flux_err,
     )
     lc_folded   = lc_tmp.fold(period=period, epoch_time=t0)
     phase_hours = lc_folded.phase.value * period * 24.0
