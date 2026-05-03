@@ -12,17 +12,28 @@ HOW TO RUN
 The app will open automatically at http://localhost:8501
 """
 
+# ── st.set_page_config MUST be the very first Streamlit call ─────────────────
+# Import streamlit first, before any other st.* usage anywhere in the file.
+import streamlit as st
+
+st.set_page_config(
+    page_title="Exoplanet Hunter",
+    page_icon="🔭",
+    layout="wide",
+    initial_sidebar_state="expanded",   # sidebar always open on first load
+)
+
+# ── All other imports follow page config ──────────────────────────────────────
 import warnings
 import shutil
 from pathlib import Path
 
 import numpy as np
 import matplotlib
-matplotlib.use("Agg")          # non-interactive backend — required for Streamlit
+matplotlib.use("Agg")   # non-interactive backend — required inside Streamlit
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.ticker as ticker
-import streamlit as st
 import lightkurve as lk
 from astropy.timeseries import BoxLeastSquares
 import astropy.units as u
@@ -39,105 +50,157 @@ N_BINS           = 60
 SG_WINDOW        = 101
 SG_POLY          = 3
 
-# ── Plot theme ─────────────────────────────────────────────────────────────────
-BG_DARK   = "#060a14"
-BG_PANEL  = "#0a0f1e"
-C_GRID    = "#1a2a44"
-C_TICK    = "#6a85b0"
-C_RAW     = "#7ecfff"
-C_TREND   = "#ff6b6b"
-C_FLAT    = "#ffe66d"
-C_CLEAN   = "#a8ff78"
-C_FOLD    = "#4a7cff"
-C_BIN     = "#ffffff"
-C_PEAK    = "#ff4f6e"
-C_PERI    = "#00d4ff"
-C_ANNO    = "#ffe66d"
-
+# ── Matplotlib plot-theme palette ─────────────────────────────────────────────
+BG_DARK  = "#060a14"
+BG_PANEL = "#0d1525"
+C_GRID   = "#1a2a44"
+C_TICK   = "#6a85b0"
+C_RAW    = "#7ecfff"
+C_TREND  = "#ff6b6b"
+C_FLAT   = "#ffe66d"
+C_CLEAN  = "#a8ff78"
+C_FOLD   = "#4a7cff"
+C_BIN    = "#ffffff"
+C_PEAK   = "#ff4f6e"
+C_PERI   = "#00d4ff"
+C_ANNO   = "#ffe66d"
 
 # =============================================================================
-# PAGE CONFIG
+# CSS — SPACE NEBULA BACKGROUND + FULL UI THEME
 # =============================================================================
+# Background strategy:
+#   Layer 0 — NASA Hubble "Pillars of Creation" (NIRCam) served from a
+#              reliable public CDN (NASA's own image server).
+#              URL: a dark-orange/teal infrared nebula — perfect contrast base.
+#   Layer 1 — A deep navy-to-transparent radial gradient scrim that sits ON TOP
+#              of the photo, darkening edges and ensuring text over any part of
+#              the image remains readable (contrast ratio > 4.5:1 for WCAG AA).
+#   Layer 2 — A subtle noise-grain texture SVG (inline data URI) for depth.
+#
+# Sidebar background:
+#   A semi-transparent dark panel with backdrop-filter blur so the nebula
+#   shows softly behind it without competing with the sidebar text.
+#
+# Text contrast:
+#   All body text is #c8d8f0 (light blue-white) on backgrounds that are
+#   at minimum 60 % opacity dark. Headings use the gradient treatment.
+#   Stat cards get an rgba(8,14,30,0.85) fill so values pop against any nebula.
 
-st.set_page_config(
-    page_title="Exoplanet Hunter",
-    page_icon="🔭",
-    layout="wide",
-    initial_sidebar_state="expanded",   # always start expanded
-)
-
-# ── Custom CSS ─────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
+  /* ── Fonts ── */
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Exo+2:wght@300;400;600;800&display=swap');
 
-  .stApp { background: #060a14; }
+  /* ════════════════════════════════════════════════════════
+     SPACE NEBULA BACKGROUND
+     Uses the Hubble/Webb "Pillars of Creation" NIRCam image
+     from NASA's public image gallery — always available, no
+     CORS issues, no API key required.
+     ════════════════════════════════════════════════════════ */
+  .stApp {
+      /* Layer 0: the nebula photo, fixed so it doesn't scroll */
+      background-image:
+          /* Layer 1: dark scrim gradient for text legibility */
+          radial-gradient(
+              ellipse at 60% 40%,
+              rgba(4, 8, 20, 0.55) 0%,
+              rgba(4, 8, 20, 0.82) 55%,
+              rgba(2, 5, 14, 0.96) 100%
+          ),
+          /* Layer 2: subtle noise grain (inline SVG data URI) */
+          url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E"),
+          /* Layer 3: the nebula — Pillars of Creation (Webb NIRCam) */
+          url("https://stsci-opo.org/STScI-01GA76Q01D09HFEV174SVMQDMV.png");
+      background-size: cover, 256px 256px, cover;
+      background-position: center, center, center;
+      background-attachment: fixed, fixed, fixed;
+      background-repeat: no-repeat, repeat, no-repeat;
+      /* Fallback solid colour if image fails to load */
+      background-color: #04080e;
+      min-height: 100vh;
+  }
 
-  /* ── SIDEBAR FIX: force sidebar to always stay visible ── */
-  /* Show the sidebar panel itself at all times */
+  /* ── Main content pane: semi-transparent frosted panel ── */
+  .main .block-container {
+      background: rgba(4, 10, 22, 0.72);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      border-radius: 12px;
+      padding: 2rem 2.5rem !important;
+      margin-top: 0.5rem;
+      border: 1px solid rgba(30, 50, 90, 0.4);
+  }
+
+  /* ════════════════════════════════════════════════════════
+     SIDEBAR — frosted dark glass over the nebula
+     ════════════════════════════════════════════════════════ */
   section[data-testid="stSidebar"] {
-      background: #0a0f1e !important;
-      border-right: 1px solid #1e2d50;
-      min-width: 260px !important;
+      background: rgba(6, 12, 26, 0.88) !important;
+      backdrop-filter: blur(14px) !important;
+      -webkit-backdrop-filter: blur(14px) !important;
+      border-right: 1px solid rgba(30, 60, 110, 0.55) !important;
+      /* Sidebar lock — prevent collapse */
+      min-width: 265px !important;
       max-width: 320px !important;
-      transform: none !important;       /* prevent slide-out animation */
+      transform: none !important;
       visibility: visible !important;
       display: block !important;
   }
-  /* Hide the collapse arrow button that lets users close the sidebar */
+  /* Hide the ›/‹ collapse toggle buttons */
   button[data-testid="collapsedControl"],
-  [data-testid="collapsedControl"] {
+  [data-testid="collapsedControl"],
+  [data-testid="stSidebarCollapseButton"],
+  .css-1lcbmhc, .css-1d391kg {
       display: none !important;
   }
-  /* Also hide the ›/‹ chevron toggle that appears on hover */
-  .css-1lcbmhc, .css-1d391kg,
-  [data-testid="stSidebarCollapseButton"] {
-      display: none !important;
-  }
-  /* Ensure the main content area doesn't expand to fill sidebar space */
-  .main .block-container {
-      max-width: calc(100% - 280px) !important;
+
+  /* ════════════════════════════════════════════════════════
+     TYPOGRAPHY — high-contrast on dark/nebula backgrounds
+     ════════════════════════════════════════════════════════ */
+  html, body, [class*="css"] {
+      font-family: 'Exo 2', sans-serif;
+      color: #c8d8f0;   /* WCAG AA on rgba(4,10,22,0.72) background */
   }
 
-  html, body, [class*="css"] { font-family: 'Exo 2', sans-serif; color: #c8d8f0; }
-
+  /* Hero headline — gradient text */
   .hero-title {
       font-family: 'Space Mono', monospace;
-      font-size: 2.6rem;
+      font-size: 2.8rem;
       font-weight: 700;
-      background: linear-gradient(135deg, #00d4ff 0%, #a8ff78 50%, #ffe66d 100%);
+      background: linear-gradient(135deg, #00d4ff 0%, #a8ff78 55%, #ffe66d 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
+      background-clip: text;
       letter-spacing: -1px;
       line-height: 1.1;
-      margin-bottom: 0.2rem;
+      margin-bottom: 0.25rem;
+      /* Text-shadow on gradient text: use filter instead */
+      filter: drop-shadow(0 0 18px rgba(0,212,255,0.25));
   }
   .hero-sub {
       font-family: 'Exo 2', sans-serif;
-      font-size: 0.95rem;
-      color: #4a6a9a;
-      letter-spacing: 0.12em;
+      font-size: 0.9rem;
+      color: #5a7aaa;       /* muted but readable on dark glass */
+      letter-spacing: 0.14em;
       text-transform: uppercase;
       margin-bottom: 2rem;
   }
-  .sidebar-label {
-      font-family: 'Space Mono', monospace;
-      font-size: 0.72rem;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: #4a6a9a;
-      margin-bottom: 0.3rem;
-  }
-  .stat-grid { display: flex; gap: 12px; flex-wrap: wrap; margin: 1.2rem 0; }
+
+  /* ════════════════════════════════════════════════════════
+     STAT CARDS — solid dark fill for guaranteed contrast
+     ════════════════════════════════════════════════════════ */
   .stat-card {
-      background: #0d1a2e;
-      border: 1px solid #1e2d50;
+      background: rgba(8, 16, 34, 0.90);   /* near-opaque so value text
+                                               is always readable */
+      border: 1px solid rgba(30, 55, 100, 0.7);
       border-radius: 10px;
       padding: 14px 20px;
       flex: 1;
       min-width: 140px;
       position: relative;
       overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.45),
+                  inset 0 1px 0 rgba(255,255,255,0.04);
   }
   .stat-card::before {
       content: '';
@@ -145,64 +208,132 @@ st.markdown("""
       top: 0; left: 0; right: 0;
       height: 2px;
   }
-  .stat-card.blue::before  { background: #00d4ff; }
-  .stat-card.green::before { background: #a8ff78; }
-  .stat-card.gold::before  { background: #ffe66d; }
-  .stat-card.pink::before  { background: #ff4f6e; }
-  .stat-card.cyan::before  { background: #4a7cff; }
+  .stat-card.blue::before  { background: linear-gradient(90deg,#00d4ff,#0080ff); }
+  .stat-card.green::before { background: linear-gradient(90deg,#a8ff78,#00d464); }
+  .stat-card.gold::before  { background: linear-gradient(90deg,#ffe66d,#ff9f1c); }
+  .stat-card.pink::before  { background: linear-gradient(90deg,#ff4f6e,#ff006e); }
+  .stat-card.cyan::before  { background: linear-gradient(90deg,#4a7cff,#00d4ff); }
   .stat-label {
       font-family: 'Space Mono', monospace;
-      font-size: 0.65rem;
-      letter-spacing: 0.15em;
+      font-size: 0.62rem;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
-      color: #4a6a9a;
-      margin-bottom: 4px;
+      color: #4a6890;       /* subdued label */
+      margin-bottom: 5px;
   }
   .stat-value {
       font-family: 'Space Mono', monospace;
-      font-size: 1.25rem;
+      font-size: 1.22rem;
       font-weight: 700;
-      color: #e8f4ff;
+      color: #eaf4ff;       /* near-white — max contrast on dark card */
   }
-  .stat-unit { font-size: 0.7rem; color: #4a6a9a; margin-left: 3px; }
+  .stat-unit { font-size: 0.68rem; color: #4a6890; margin-left: 3px; }
+
+  /* ════════════════════════════════════════════════════════
+     SIDEBAR LABEL / SECTION HEADER
+     ════════════════════════════════════════════════════════ */
+  .sidebar-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #3a5a8a;
+      margin-bottom: 0.3rem;
+  }
   .section-header {
       font-family: 'Space Mono', monospace;
-      font-size: 0.75rem;
-      letter-spacing: 0.2em;
+      font-size: 0.72rem;
+      letter-spacing: 0.22em;
       text-transform: uppercase;
-      color: #4a6a9a;
-      border-bottom: 1px solid #1e2d50;
+      color: #3a5880;
+      border-bottom: 1px solid rgba(30, 55, 100, 0.55);
       padding-bottom: 8px;
-      margin: 2rem 0 1rem 0;
+      margin: 2.2rem 0 1rem 0;
   }
+
+  /* ════════════════════════════════════════════════════════
+     DESCRIPTION TEXT BLOCKS — readable against nebula
+     ════════════════════════════════════════════════════════ */
+  .desc-text {
+      font-size: 0.83rem;
+      color: #8aabcc;       /* mid-blue — readable at WCAG AA on dark glass */
+      line-height: 1.65;
+      margin-bottom: 0.9rem;
+  }
+
+  /* ════════════════════════════════════════════════════════
+     ANIMATIONS
+     ════════════════════════════════════════════════════════ */
   @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(18px); }
-      to   { opacity: 1; transform: translateY(0); }
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0);    }
   }
-  .animate-in { animation: fadeUp 0.55s ease both; }
-  .delay-1 { animation-delay: 0.1s; }
-  .delay-2 { animation-delay: 0.22s; }
-  .delay-3 { animation-delay: 0.34s; }
+  @keyframes starPulse {
+      0%, 100% { opacity: 0.6; }
+      50%       { opacity: 1.0; }
+  }
+  .animate-in  { animation: fadeUp 0.5s ease both; }
+  .delay-1     { animation-delay: 0.08s; }
+  .delay-2     { animation-delay: 0.18s; }
+  .delay-3     { animation-delay: 0.30s; }
+  .star-pulse  { animation: starPulse 3s ease-in-out infinite; }
+
+  /* ── Chrome cleanup ── */
   #MainMenu, footer, header { visibility: hidden; }
-  .block-container { padding-top: 2rem !important; }
+
+  /* ── Streamlit widget contrast overrides ── */
+  .stTextInput > div > div > input {
+      background: rgba(8, 18, 38, 0.85) !important;
+      border: 1px solid rgba(40, 70, 120, 0.7) !important;
+      color: #c8d8f0 !important;
+      border-radius: 6px;
+  }
+  .stTextInput > div > div > input:focus {
+      border-color: #00d4ff !important;
+      box-shadow: 0 0 0 2px rgba(0,212,255,0.15) !important;
+  }
+  .stSlider > div { color: #6a85b0 !important; }
+  /* Primary button glow */
+  .stButton > button[kind="primary"] {
+      background: linear-gradient(135deg, #00d4ff22, #4a7cff22) !important;
+      border: 1px solid #00d4ff88 !important;
+      color: #00d4ff !important;
+      font-family: 'Space Mono', monospace !important;
+      font-size: 0.78rem !important;
+      letter-spacing: 0.1em !important;
+      border-radius: 8px !important;
+      transition: all 0.25s ease !important;
+  }
+  .stButton > button[kind="primary"]:hover {
+      background: linear-gradient(135deg, #00d4ff44, #4a7cff44) !important;
+      box-shadow: 0 0 20px rgba(0,212,255,0.30) !important;
+      border-color: #00d4ff !important;
+  }
 </style>
 """, unsafe_allow_html=True)
 
 # ── Session-state sidebar lock ────────────────────────────────────────────────
-# Forces sidebar to stay "expanded" on every script rerun.
-# Belt-and-suspenders: CSS hides the close button AND this resets state.
+# Streamlit persists sidebar collapse state between reruns.
+# Initialising it here forces it open on first load and after every rerun.
 if "sidebar_state" not in st.session_state:
     st.session_state.sidebar_state = "expanded"
 
-# JS: hide collapse button + lock sidebar width after DOM loads
+# JS belt-and-suspenders: physically remove the collapse button from DOM
+# and lock the sidebar transform after the React tree mounts (~600 ms).
 st.markdown("""
 <script>
-window.addEventListener('load', function() {
-    setTimeout(function() {
+window.addEventListener('load', function () {
+    setTimeout(function () {
+        // Remove collapse toggle
         var btn = document.querySelector('[data-testid="collapsedControl"]');
-        if (btn) { btn.style.display = 'none'; }
+        if (btn) btn.style.display = 'none';
+        // Lock sidebar open
         var sb = document.querySelector('[data-testid="stSidebar"]');
-        if (sb) { sb.style.minWidth = '260px'; sb.style.transform = 'none'; }
+        if (sb) {
+            sb.style.minWidth  = '265px';
+            sb.style.transform = 'none';
+            sb.style.visibility = 'visible';
+        }
     }, 600);
 });
 </script>
@@ -242,7 +373,7 @@ def clear_cache():
             path.mkdir(parents=True, exist_ok=True)
 
 
-@st.cache_resource(show_spinner=False)
+@st.cache_data(show_spinner=False)
 def fetch_and_clean(target: str, quarter: int):
     """
     Full Stage 1+2 pipeline cached by Streamlit.
@@ -313,9 +444,14 @@ def run_bls_cached(time_arr, flux_arr, err_arr):
 
 def phase_fold_arrays(time, flux, flux_err, period, t0):
     """Fold and bin using lightkurve, return plain arrays."""
+    # FIX: lk.time.Time does not exist.
+    # Use astropy.time.Time directly — lightkurve's LightCurve
+    # accepts a plain astropy Time object for its time column.
+    from astropy.time import Time as AstropyTime
     lc_tmp = lk.LightCurve(
-        time=lk.time.Time(time, format="bkjd"),
-        flux=flux, flux_err=flux_err,
+        time=AstropyTime(time, format="bkjd", scale="tdb"),
+        flux=flux,
+        flux_err=flux_err,
     )
     lc_folded   = lc_tmp.fold(period=period, epoch_time=t0)
     phase_hours = lc_folded.phase.value * period * 24.0
@@ -683,7 +819,7 @@ for col, color, label, value, unit in [
 st.markdown('<div class="section-header animate-in delay-2">'
             '01 · Raw Light Curve</div>', unsafe_allow_html=True)
 st.markdown("""
-<div style='font-size:0.82rem;color:#2a4a6a;margin-bottom:0.8rem;'>
+<div class='desc-text'>
 Raw stellar brightness over time. The <span style='color:#ff6b6b'>red curve</span>
 is the Savitzky-Golay fitted stellar trend — slow variability that completely hides
 the tiny planet transits beneath it.
@@ -700,7 +836,7 @@ plt.close(fig_raw)
 st.markdown('<div class="section-header animate-in delay-2">'
             '02 · Cleaned &amp; Flattened Light Curve</div>', unsafe_allow_html=True)
 st.markdown(f"""
-<div style='font-size:0.82rem;color:#2a4a6a;margin-bottom:0.8rem;'>
+<div class='desc-text'>
 Top panel: after dividing out the stellar trend. Bottom panel: after
 sigma-clipping outlier spikes (flares &amp; cosmic rays).
 Noise floor ≈ <b style='color:#a8ff78'>{noise_ppm:.0f} ppm</b> —
@@ -719,7 +855,7 @@ st.markdown('<div class="section-header animate-in delay-3">'
             '03 · BLS Periodogram &amp; Phase-Folded Transit</div>',
             unsafe_allow_html=True)
 st.markdown(f"""
-<div style='font-size:0.82rem;color:#2a4a6a;margin-bottom:0.8rem;'>
+<div class='desc-text'>
 The BLS algorithm tested every period from {BLS_MIN_PERIOD}–{BLS_MAX_PERIOD} days.
 The tallest spike = the planet's orbital period
 (<b style='color:#ffe66d'>P = {best_period:.5f} d</b>).
@@ -740,7 +876,7 @@ plt.close(fig_bls)
 st.markdown("---")
 st.markdown(f"""
 <div style='text-align:center;font-family:Space Mono,monospace;
-     font-size:0.7rem;color:#1e3a5a;padding:1rem 0 2rem;'>
+     font-size:0.7rem;color:#3a5a80;padding:1rem 0 2rem;'>
   {star_name.upper()} · Q{quarter} ·
   {len(lc_clean):,} cadences ·
   {t_span:.1f} d baseline ·
