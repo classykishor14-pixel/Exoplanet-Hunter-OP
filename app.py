@@ -59,12 +59,18 @@ C_ANNO    = "#ffe66d"
 # PAGE CONFIG
 # =============================================================================
 
+
+# MUST BE THE FIRST STREAMLIT COMMAND
 st.set_page_config(
     page_title="Exoplanet Detector",
-    page_icon="🪐",
+    page_icon="🪐", 
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="expanded"
 )
+
+# Use this to force the sidebar open if it gets stuck
+if 'sidebar_state' not in st.session_state:
+    st.session_state.sidebar_state = 'expanded'
 
 # ── Custom CSS ─────────────────────────────────────────────────────────────────
 st.markdown("""
