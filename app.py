@@ -567,18 +567,6 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div class="sidebar-label">Target Star</div>', unsafe_allow_html=True)
-    star_name = st.text_input(
-        label="star", value="Kepler-10",
-        label_visibility="collapsed",
-        placeholder="e.g. Kepler-10, Kepler-22 …",
-    )
-
-    st.markdown('<div class="sidebar-label" style="margin-top:14px">Kepler Quarter (0–17)</div>',
-                unsafe_allow_html=True)
-    quarter = st.slider("q", min_value=0, max_value=17, value=3, label_visibility="collapsed")
-
-    search_btn = st.button("⚡  SEARCH FOR PLANETS", use_container_width=True, type="primary")
 
     st.markdown("---")
     st.markdown("""
@@ -621,14 +609,34 @@ if not search_btn:
               <div style='font-family:Space Mono,monospace;font-size:0.9rem;
                           color:#e8f4ff;margin-top:4px;'>{value}</div>
             </div>""", unsafe_allow_html=True)
-    st.markdown("""
-    <div style='margin-top:3rem;text-align:center;color:#1e3a5a;
-                font-family:Space Mono,monospace;font-size:0.8rem;'>
-      ← Enter a star name in the sidebar and click SEARCH
-    </div>""", unsafe_allow_html=True)
-    st.stop()
+if 'search_btn' not in st.session_state:
+    st.session_state.search_btn = False
+if not st.session_state.search_btn:
+# --- NEW CENTERED SEARCH HUD ---
+    st.markdown("<br>", unsafe_allow_html=True) 
 
-# =============================================================================
+    star_name = st.text_input(
+        "SEARCH THE COSMOS", 
+        placeholder="Enter Star Name (e.g., Kepler-10)...", 
+        label_visibility="collapsed"
+    )
+
+    # Recommendations Chips
+    st.markdown("""
+        <div style="display: flex; gap: 15px; justify-content: center; margin-top: -10px; margin-bottom: 20px;">
+            <span style="font-size: 0.8rem; color: #555;">Suggestions:</span>
+            <code style="color: #00d4ff; background: rgba(0,212,255,0.1); padding: 2px 8px; border-radius: 5px;">Kepler-90</code>
+            <code style="color: #00d4ff; background: rgba(0,212,255,0.1); padding: 2px 8px; border-radius: 5px;">TRAPPIST-1</code>
+        </div>
+    """, unsafe_allow_html=True)
+
+    _, btn_col, _ = st.columns([1, 2, 1])
+    with btn_col:
+        if st.button("🚀 INITIATE DISCOVERY SCAN", use_container_width=True):
+            st.session_state.search_btn = True
+            st.rerun()
+
+    st.stop()
 # RUN PIPELINE
 # =============================================================================
 
