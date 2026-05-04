@@ -595,7 +595,7 @@ st.markdown('<div class="hero-title animate-in">EXOPLANET HUNTER</div>', unsafe_
 st.markdown('<div class="hero-sub animate-in delay-1">Kepler Space Telescope · Box Least Squares Detection Engine</div>',
             unsafe_allow_html=True)
 
-if not search_btn:
+if not st.session_state.search_btn:
     c1, c2, c3 = st.columns(3)
     for col, color, label, value in [
         (c1, "blue",  "MISSION",     "Kepler Space Telescope"),
