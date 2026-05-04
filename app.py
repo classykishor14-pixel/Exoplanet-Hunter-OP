@@ -588,6 +588,8 @@ with st.sidebar:
 
 if 'search_btn' not in st.session_state:
     st.session_state.search_btn = False
+if 'st.session_state.star_name' not in st.session_state:
+    st.session_state.star_name = "Kepler-10" # Default value
 # =============================================================================
 # MAIN PAGE
 # =============================================================================
@@ -615,8 +617,9 @@ if not st.session_state.search_btn:
 # --- NEW CENTERED SEARCH HUD ---
     st.markdown("<br>", unsafe_allow_html=True) 
 
-    star_name = st.text_input(
-        "SEARCH THE COSMOS", 
+    st.session_state.star_name = st.text_input(
+        "SEARCH THE COSMOS",
+        value=st.session_state.star_name, 
         placeholder="Enter Star Name (e.g., Kepler-10)...", 
         label_visibility="collapsed"
     )
@@ -643,7 +646,7 @@ if not st.session_state.search_btn:
 st.markdown(f"""
 <div class="animate-in" style='font-family:Space Mono,monospace;
      font-size:0.8rem;color:#4a6a9a;margin-bottom:1rem;'>
-  ANALYSING  <span style='color:#00d4ff'>{star_name.upper()}</span>
+     ANALYSING <span style='color:#00d4ff'>{st.session_state.star_name}</span>
   &nbsp;·&nbsp; QUARTER {quarter}
 </div>""", unsafe_allow_html=True)
 
@@ -652,7 +655,7 @@ with st.spinner("📡 Contacting NASA MAST archive and cleaning data …"):
         (raw_t, raw_f, raw_fe,
          trend_t, trend_f,
          flat_t, flat_f, flat_fe,
-         clean_t, clean_f, clean_fe) = fetch_and_clean(star_name, quarter)
+         clean_t, clean_f, clean_fe) = fetch_and_clean(st.session_state.star_name, quarter)
     except Exception as e:
         st.error(
             f"**Download failed:** {e}\n\n"
@@ -732,7 +735,7 @@ st.markdown("---")
 st.markdown(f"""
 <div style='text-align:center;font-family:Space Mono,monospace;
      font-size:0.7rem;color:#3a5a80;padding:1rem 0 2rem;'>
-  {star_name.upper()} · Q{quarter} · {len(clean_t):,} cadences ·
+  {st.session_state.star_name.upper()} · Q{quarter} · {len(clean_t):,} cadences ·
   {t_span:.1f} d · Noise {noise_ppm:.0f} ppm ·
   P = {best_period:.5f} d · Depth {best_depth*1e6:.0f} ppm · NASA MAST
 </div>""", unsafe_allow_html=True)
