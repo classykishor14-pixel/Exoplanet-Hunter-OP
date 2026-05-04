@@ -1,4 +1,4 @@
-=============================================================================="""
+"""==============================================================================
 
   EXOPLANET DETECTION SYSTEM — Streamlit Web Application
   app.py  [UPGRADED: HD nebula background + glassmorphism containers + TESS Support]
