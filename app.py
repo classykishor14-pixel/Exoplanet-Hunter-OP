@@ -1,14 +1,13 @@
 """
 ==============================================================================
   EXOPLANET DETECTION SYSTEM — Streamlit Web Application
-  app.py  [FIXED: pickle cache + fast CSS nebula background]
+  app.py  [UPGRADED: HD nebula background + glassmorphism containers]
 ==============================================================================
 HOW TO RUN
     pip install streamlit lightkurve astropy matplotlib numpy
     streamlit run app.py
 """
 
-# ── st.set_page_config MUST be the very first Streamlit call ─────────────────
 import streamlit as st
 
 st.set_page_config(
@@ -18,7 +17,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── All other imports follow ──────────────────────────────────────────────────
 import warnings
 import shutil
 from pathlib import Path
@@ -61,54 +59,160 @@ C_PERI   = "#00d4ff"
 C_ANNO   = "#ffe66d"
 
 # =============================================================================
-# CSS
+# CSS  —  HD nebula background + full glassmorphism
 # =============================================================================
 st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Exo+2:wght@300;400;600;800&display=swap');
 
+  /* ══════════════════════════════════════════════════════════════════════
+     HD NEBULA BACKGROUND
+     Wikimedia Commons Crab Nebula (public domain, NASA/HST) — 1280px wide,
+     served via HTTPS with no auth or CORS restrictions.
+
+     Layer stack (top → bottom):
+       1. Inline SVG film-grain noise   — adds texture depth, zero network
+       2. Radial vignette               — darkens edges, centres focus
+       3. Colour-grade teal/indigo wash — matches app palette
+       4. Luminance-crush overlay       — keeps darkest pixels readable
+       5. Actual HD nebula photograph
+  ══════════════════════════════════════════════════════════════════════ */
   .stApp {
-      background-color: #03050f;
+      background-color: #02040e;
       background-image:
-          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"),
-          radial-gradient(ellipse 55% 40% at 85% 80%, rgba(180,80,10,0.22) 0%, transparent 70%),
-          radial-gradient(ellipse 70% 60% at 20% 55%, rgba(90,20,140,0.35) 0%, rgba(40,10,80,0.15) 50%, transparent 80%),
-          radial-gradient(ellipse 50% 45% at 78% 18%, rgba(0,160,200,0.28) 0%, rgba(0,80,140,0.12) 55%, transparent 80%),
-          radial-gradient(ellipse 90% 70% at 50% 45%, rgba(10,25,70,0.60) 0%, rgba(3,8,28,0.90) 65%, rgba(2,4,15,1.00) 100%),
-          linear-gradient(160deg, #04080f 0%, #020408 100%);
-      background-size: 300px 300px, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
-      background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
-      background-attachment: fixed;
+          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E"),
+          radial-gradient(ellipse 100% 100% at 50% 50%, transparent 25%, rgba(1,3,12,0.80) 100%),
+          linear-gradient(180deg, rgba(4,8,28,0.52) 0%, rgba(8,4,24,0.38) 50%, rgba(2,6,20,0.58) 100%),
+          linear-gradient(rgba(1,3,12,0.28), rgba(1,3,12,0.28)),
+          url("https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Crab_Nebula.jpg/1280px-Crab_Nebula.jpg");
+
+      background-size:
+          400px 400px,
+          100% 100%,
+          100% 100%,
+          100% 100%,
+          cover;
+
+      background-repeat:
+          repeat,
+          no-repeat,
+          no-repeat,
+          no-repeat,
+          no-repeat;
+
+      background-position:
+          top left,
+          center center,
+          center center,
+          center center,
+          center center;
+
+      /* Fixed keeps the nebula stationary while content scrolls */
+      background-attachment:
+          scroll,
+          fixed,
+          fixed,
+          fixed,
+          fixed;
+
       min-height: 100vh;
   }
 
-  .main .block-container {
-      background: rgba(4,10,22,0.72);
-      backdrop-filter: blur(2px);
-      -webkit-backdrop-filter: blur(2px);
-      border-radius: 12px;
-      padding: 2rem 2.5rem !important;
-      margin-top: 0.5rem;
-      border: 1px solid rgba(30,50,90,0.4);
+  /* CSS-only fallback nebula — renders instantly if image is still loading */
+  .stApp::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background:
+          radial-gradient(ellipse 55% 40% at 85% 80%, rgba(180,80,10,0.28) 0%, transparent 65%),
+          radial-gradient(ellipse 70% 60% at 20% 55%, rgba(90,20,140,0.40) 0%, rgba(40,10,80,0.18) 50%, transparent 80%),
+          radial-gradient(ellipse 50% 45% at 78% 18%, rgba(0,160,200,0.32) 0%, rgba(0,80,140,0.14) 55%, transparent 80%),
+          radial-gradient(ellipse 90% 70% at 50% 45%, rgba(10,25,70,0.65) 0%, rgba(3,8,28,0.92) 65%, #02040e 100%);
+      pointer-events: none;
   }
 
+  /* ══════════════════════════════════════════════════════════════════════
+     GLASSMORPHISM — main content panel
+  ══════════════════════════════════════════════════════════════════════ */
+  .main .block-container {
+      background: rgba(3, 8, 22, 0.52) !important;
+      backdrop-filter: blur(20px) saturate(165%) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(165%) !important;
+      border-radius: 18px !important;
+      padding: 2rem 2.5rem !important;
+      margin-top: 0.5rem !important;
+      border: 1px solid rgba(100, 160, 255, 0.13) !important;
+      box-shadow:
+          0 8px 40px rgba(0,0,0,0.55),
+          inset 0 1px 0 rgba(255,255,255,0.065),
+          inset 0 -1px 0 rgba(0,0,0,0.30) !important;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     GLASSMORPHISM — sidebar
+  ══════════════════════════════════════════════════════════════════════ */
   section[data-testid="stSidebar"] {
-      background: rgba(6,12,26,0.92) !important;
-      backdrop-filter: blur(14px) !important;
-      -webkit-backdrop-filter: blur(14px) !important;
-      border-right: 1px solid rgba(30,60,110,0.55) !important;
+      background: rgba(4, 9, 24, 0.70) !important;
+      backdrop-filter: blur(26px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(26px) saturate(180%) !important;
+      border-right: 1px solid rgba(80, 140, 255, 0.15) !important;
+      box-shadow: 4px 0 30px rgba(0,0,0,0.55) !important;
       min-width: 265px !important;
       max-width: 320px !important;
       transform: none !important;
       visibility: visible !important;
       display: block !important;
   }
+
   button[data-testid="collapsedControl"],
   [data-testid="collapsedControl"],
   [data-testid="stSidebarCollapseButton"],
   .css-1lcbmhc, .css-1d391kg { display: none !important; }
 
-  html, body, [class*="css"] { font-family: 'Exo 2', sans-serif; color: #c8d8f0; }
+  /* ══════════════════════════════════════════════════════════════════════
+     GLASSMORPHISM — Streamlit native alert/info boxes
+  ══════════════════════════════════════════════════════════════════════ */
+  div[data-testid="stExpander"],
+  div[data-testid="stInfo"],
+  div[data-testid="stSuccess"],
+  div[data-testid="stWarning"],
+  div[data-testid="stError"] {
+      background: rgba(6, 14, 32, 0.58) !important;
+      backdrop-filter: blur(14px) !important;
+      -webkit-backdrop-filter: blur(14px) !important;
+      border: 1px solid rgba(80,130,220,0.20) !important;
+      border-radius: 10px !important;
+  }
+
+  /* Spinner */
+  div[data-testid="stSpinner"] > div {
+      background: rgba(4, 10, 26, 0.68) !important;
+      backdrop-filter: blur(12px) !important;
+      border-radius: 8px !important;
+      border: 1px solid rgba(0,212,255,0.16) !important;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     GLASSMORPHISM — matplotlib figure wrappers
+  ══════════════════════════════════════════════════════════════════════ */
+  div[data-testid="stPyplotRootElement"] {
+      background: rgba(3, 8, 20, 0.48) !important;
+      backdrop-filter: blur(10px) !important;
+      -webkit-backdrop-filter: blur(10px) !important;
+      border-radius: 14px !important;
+      border: 1px solid rgba(40, 80, 160, 0.22) !important;
+      padding: 6px !important;
+      box-shadow:
+          0 4px 24px rgba(0,0,0,0.50),
+          inset 0 1px 0 rgba(255,255,255,0.04) !important;
+  }
+
+  /* ── TYPOGRAPHY ── */
+  html, body, [class*="css"] {
+      font-family: 'Exo 2', sans-serif;
+      color: #d0e4ff;
+  }
 
   .hero-title {
       font-family: 'Space Mono', monospace;
@@ -117,36 +221,67 @@ st.markdown("""
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
       background-clip: text;
       letter-spacing: -1px; line-height: 1.1; margin-bottom: 0.25rem;
-      filter: drop-shadow(0 0 18px rgba(0,212,255,0.25));
+      filter: drop-shadow(0 0 28px rgba(0,212,255,0.38));
   }
   .hero-sub {
-      font-size: 0.9rem; color: #5a7aaa;
+      font-size: 0.9rem; color: #6a8abb;
       letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 2rem;
+      text-shadow: 0 1px 10px rgba(0,0,0,0.9);
   }
   .sidebar-label {
       font-family: 'Space Mono', monospace; font-size: 0.7rem;
       letter-spacing: 0.16em; text-transform: uppercase;
-      color: #3a5a8a; margin-bottom: 0.3rem;
+      color: #4a6a9a; margin-bottom: 0.3rem;
   }
   .section-header {
       font-family: 'Space Mono', monospace; font-size: 0.72rem;
-      letter-spacing: 0.22em; text-transform: uppercase; color: #3a5880;
-      border-bottom: 1px solid rgba(30,55,100,0.55);
+      letter-spacing: 0.22em; text-transform: uppercase; color: #4a6890;
+      border-bottom: 1px solid rgba(50,80,140,0.45);
       padding-bottom: 8px; margin: 2.2rem 0 1rem 0;
   }
   .desc-text {
-      font-size: 0.83rem; color: #8aabcc; line-height: 1.65; margin-bottom: 0.9rem;
+      font-size: 0.83rem; color: #9abcdd; line-height: 1.65; margin-bottom: 0.9rem;
+      text-shadow: 0 1px 8px rgba(0,0,0,0.75);
   }
 
+  /* ══════════════════════════════════════════════════════════════════════
+     GLASSMORPHISM STAT CARDS
+  ══════════════════════════════════════════════════════════════════════ */
   .stat-card {
-      background: rgba(8,16,34,0.90);
-      border: 1px solid rgba(30,55,100,0.7); border-radius: 10px;
-      padding: 14px 20px; flex: 1; min-width: 140px;
+      background: rgba(6, 14, 34, 0.55);
+      backdrop-filter: blur(18px) saturate(155%);
+      -webkit-backdrop-filter: blur(18px) saturate(155%);
+      border: 1px solid rgba(60, 100, 180, 0.26);
+      border-radius: 13px;
+      padding: 14px 20px;
+      flex: 1; min-width: 140px;
       position: relative; overflow: hidden;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04);
+      box-shadow:
+          0 4px 28px rgba(0,0,0,0.52),
+          inset 0 1px 0 rgba(255,255,255,0.08),
+          inset 0 -1px 0 rgba(0,0,0,0.22);
+      transition: box-shadow 0.3s ease, border-color 0.3s ease, transform 0.2s ease;
   }
+  .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow:
+          0 8px 36px rgba(0,0,0,0.62),
+          0 0 22px rgba(0,180,255,0.12),
+          inset 0 1px 0 rgba(255,255,255,0.10);
+      border-color: rgba(80,150,255,0.38);
+  }
+  /* Top accent bar */
   .stat-card::before {
       content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  }
+  /* Frosted shimmer sweep */
+  .stat-card::after {
+      content: '';
+      position: absolute; top: 0; left: -80%;
+      width: 55%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.045), transparent);
+      transform: skewX(-15deg);
+      pointer-events: none;
   }
   .stat-card.blue::before  { background: linear-gradient(90deg,#00d4ff,#0080ff); }
   .stat-card.green::before { background: linear-gradient(90deg,#a8ff78,#00d464); }
@@ -161,40 +296,61 @@ st.markdown("""
   .stat-value {
       font-family: 'Space Mono', monospace;
       font-size: 1.22rem; font-weight: 700; color: #eaf4ff;
+      text-shadow: 0 0 14px rgba(0,180,255,0.22);
   }
   .stat-unit { font-size: 0.68rem; color: #4a6890; margin-left: 3px; }
 
+  /* ── WIDGET OVERRIDES ── */
   .stTextInput > div > div > input {
-      background: rgba(8,18,38,0.85) !important;
-      border: 1px solid rgba(40,70,120,0.7) !important;
-      color: #c8d8f0 !important; border-radius: 6px;
+      background: rgba(6, 14, 34, 0.72) !important;
+      backdrop-filter: blur(10px) !important;
+      border: 1px solid rgba(40,70,120,0.58) !important;
+      color: #c8d8f0 !important; border-radius: 8px !important;
+      box-shadow: inset 0 2px 10px rgba(0,0,0,0.32) !important;
   }
   .stTextInput > div > div > input:focus {
       border-color: #00d4ff !important;
-      box-shadow: 0 0 0 2px rgba(0,212,255,0.15) !important;
+      box-shadow: 0 0 0 2px rgba(0,212,255,0.20), inset 0 2px 8px rgba(0,0,0,0.26) !important;
   }
   .stButton > button[kind="primary"] {
-      background: linear-gradient(135deg,#00d4ff22,#4a7cff22) !important;
-      border: 1px solid #00d4ff88 !important; color: #00d4ff !important;
-      font-family: 'Space Mono', monospace !important; font-size: 0.78rem !important;
-      letter-spacing: 0.1em !important; border-radius: 8px !important;
+      background: rgba(0,212,255,0.08) !important;
+      backdrop-filter: blur(10px) !important;
+      border: 1px solid rgba(0,212,255,0.48) !important;
+      color: #00d4ff !important;
+      font-family: 'Space Mono', monospace !important;
+      font-size: 0.78rem !important;
+      letter-spacing: 0.1em !important;
+      border-radius: 10px !important;
       transition: all 0.25s ease !important;
   }
   .stButton > button[kind="primary"]:hover {
-      background: linear-gradient(135deg,#00d4ff44,#4a7cff44) !important;
-      box-shadow: 0 0 20px rgba(0,212,255,0.30) !important;
+      background: rgba(0,212,255,0.18) !important;
+      box-shadow: 0 0 28px rgba(0,212,255,0.30), inset 0 1px 0 rgba(255,255,255,0.09) !important;
+      border-color: rgba(0,212,255,0.72) !important;
   }
 
+  /* ── ANIMATIONS ── */
   @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(16px); }
+      from { opacity: 0; transform: translateY(18px); }
       to   { opacity: 1; transform: translateY(0); }
   }
-  .animate-in { animation: fadeUp 0.5s ease both; }
+  @keyframes glassIn {
+      from { opacity: 0; transform: scale(0.97) translateY(12px); }
+      to   { opacity: 1; transform: scale(1.00) translateY(0);    }
+  }
+  .animate-in { animation: fadeUp  0.55s cubic-bezier(.22,.68,0,1.2) both; }
+  .glass-in   { animation: glassIn 0.60s cubic-bezier(.22,.68,0,1.1) both; }
   .delay-1 { animation-delay: 0.08s; }
-  .delay-2 { animation-delay: 0.18s; }
-  .delay-3 { animation-delay: 0.30s; }
+  .delay-2 { animation-delay: 0.20s; }
+  .delay-3 { animation-delay: 0.34s; }
 
   #MainMenu, footer, header { visibility: hidden; }
+
+  /* Styled scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: rgba(2,4,16,0.55); }
+  ::-webkit-scrollbar-thumb { background: rgba(0,120,200,0.38); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(0,160,255,0.58); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -221,7 +377,7 @@ window.addEventListener('load', function () {
 # =============================================================================
 
 def apply_dark_theme(ax):
-    ax.set_facecolor(BG_PANEL)
+    ax.set_facecolor("#060e1e")
     for sp in ax.spines.values():
         sp.set_edgecolor("#1e2d50"); sp.set_linewidth(0.8)
     ax.tick_params(colors=C_TICK, labelsize=8.5)
@@ -230,7 +386,7 @@ def apply_dark_theme(ax):
 
 def make_fig(w=13, h=4.2):
     fig, ax = plt.subplots(figsize=(w, h))
-    fig.patch.set_facecolor(BG_DARK)
+    fig.patch.set_facecolor("#03060f")
     apply_dark_theme(ax)
     return fig, ax
 
@@ -356,7 +512,7 @@ def plot_raw(raw_time, raw_flux, raw_ferr, trend_time, trend_flux):
 
 def plot_flat(flat_time, flat_flux, clean_time, clean_flux):
     fig = plt.figure(figsize=(13, 5.5))
-    fig.patch.set_facecolor(BG_DARK)
+    fig.patch.set_facecolor("#03060f")
     gs  = gridspec.GridSpec(2, 1, figure=fig, hspace=0.06)
     ax1 = fig.add_subplot(gs[0])
     ax2 = fig.add_subplot(gs[1], sharex=ax1)
@@ -399,7 +555,7 @@ def plot_bls(periods, power, clean_time, clean_flux, clean_ferr,
     )
 
     fig = plt.figure(figsize=(14, 10))
-    fig.patch.set_facecolor(BG_DARK)
+    fig.patch.set_facecolor("#03060f")
     outer = gridspec.GridSpec(2, 1, figure=fig, hspace=0.42,
                               top=0.90, bottom=0.07, left=0.07, right=0.97)
     top_ax  = fig.add_subplot(outer[0])
@@ -505,7 +661,7 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    # ── QUARTER SELECTOR (THE FIX) ────────────────────────────────────────────
+    # ── QUARTER SELECTOR ──────────────────────────────────────────────────────
     st.markdown("---")
     st.markdown('<div class="sidebar-label">KEPLER QUARTER</div>', unsafe_allow_html=True)
     quarter = st.slider(
@@ -522,7 +678,6 @@ with st.sidebar:
         f"Quarters available: 0 – 17</div>",
         unsafe_allow_html=True,
     )
-    # ─────────────────────────────────────────────────────────────────────────
 
     st.markdown("---")
     st.markdown("""
@@ -545,7 +700,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 👨‍🚀 About the Developer")
     with st.container():
-        st.markdown(f"""
+        st.markdown("""
         **Name:** Kishore (Kai)
 
         **Academic Status:**
@@ -606,9 +761,9 @@ if not st.session_state.search_btn:
 
     st.markdown("""
         <div style="display: flex; gap: 15px; justify-content: center; margin-top: -10px; margin-bottom: 20px;">
-            <span style="font-size: 0.8rem; color: #555;">Suggestions:</span>
-            <code style="color: #00d4ff; background: rgba(0,212,255,0.1); padding: 2px 8px; border-radius: 5px;">Kepler-90</code>
-            <code style="color: #00d4ff; background: rgba(0,212,255,0.1); padding: 2px 8px; border-radius: 5px;">TRAPPIST-1</code>
+            <span style="font-size: 0.8rem; color: #667;">Suggestions:</span>
+            <code style="color: #00d4ff; background: rgba(0,212,255,0.10); padding: 2px 8px; border-radius: 5px; border: 1px solid rgba(0,212,255,0.22);">Kepler-90</code>
+            <code style="color: #00d4ff; background: rgba(0,212,255,0.10); padding: 2px 8px; border-radius: 5px; border: 1px solid rgba(0,212,255,0.22);">TRAPPIST-1</code>
         </div>
     """, unsafe_allow_html=True)
 
@@ -675,7 +830,7 @@ for col, color, label, value, unit in [
 ]:
     with col:
         st.markdown(f"""
-        <div class="stat-card {color} animate-in delay-2">
+        <div class="stat-card {color} glass-in delay-2">
           <div class="stat-label">{label}</div>
           <div class="stat-value">{value}<span class="stat-unit">{unit}</span></div>
         </div>""", unsafe_allow_html=True)
@@ -729,4 +884,3 @@ st.markdown(f"""
   {t_span:.1f} d · Noise {noise_ppm:.0f} ppm ·
   P = {best_period:.5f} d · Depth {best_depth*1e6:.0f} ppm · NASA MAST
 </div>""", unsafe_allow_html=True)
-
