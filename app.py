@@ -17,30 +17,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
-# --- ABOUT THE DEVELOPER SECTION ---
-with st.sidebar:
-    st.markdown("---")
-    st.markdown("### 👨‍🚀 About the Developer")
-    
-    # Using a container for a clean look
-    with st.container():
-        st.markdown(f"""
-        **Name:** Kishore (Kai)
-        
-        **Academic Status:** 
-        Recently completed 12th Grade Examinations.
-        
-        **Goal:** 
-        🎯 **MIT Class of 2031**  
-        *Astrophysics & Aeronautical Engineering*.
-        
-        **Technical Portfolio:**
-        *   **ATS-1:** Specialized Asteroid Tracker System.
-        *   **Exoplanet Hunter:** NASA MAST-based detection engine.
-        """)
-        
-    # Optional: Add a small inspirational quote or link
-    st.info("Searching the cosmos for the next Earth-like world.")
+
 # ── All other imports follow ──────────────────────────────────────────────────
 import warnings
 import shutil
@@ -90,14 +67,6 @@ st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Exo+2:wght@300;400;600;800&display=swap');
 
-  /* ── BACKGROUND: pure CSS nebula — zero network requests, instant render ──
-     Four radial gradients stack to simulate:
-       • teal star-cluster glow (top-right)
-       • purple nebula cloud (centre-left)
-       • amber emission wisps (bottom-right)
-       • deep navy void base
-     Inline SVG noise grain adds film-grain depth with no extra request.
-  */
   .stApp {
       background-color: #03050f;
       background-image:
@@ -113,7 +82,6 @@ st.markdown("""
       min-height: 100vh;
   }
 
-  /* Main content frosted glass panel */
   .main .block-container {
       background: rgba(4,10,22,0.72);
       backdrop-filter: blur(2px);
@@ -124,7 +92,6 @@ st.markdown("""
       border: 1px solid rgba(30,50,90,0.4);
   }
 
-  /* ── SIDEBAR: frosted dark glass ── */
   section[data-testid="stSidebar"] {
       background: rgba(6,12,26,0.92) !important;
       backdrop-filter: blur(14px) !important;
@@ -136,13 +103,11 @@ st.markdown("""
       visibility: visible !important;
       display: block !important;
   }
-  /* Hide collapse toggle */
   button[data-testid="collapsedControl"],
   [data-testid="collapsedControl"],
   [data-testid="stSidebarCollapseButton"],
   .css-1lcbmhc, .css-1d391kg { display: none !important; }
 
-  /* ── TYPOGRAPHY ── */
   html, body, [class*="css"] { font-family: 'Exo 2', sans-serif; color: #c8d8f0; }
 
   .hero-title {
@@ -173,7 +138,6 @@ st.markdown("""
       font-size: 0.83rem; color: #8aabcc; line-height: 1.65; margin-bottom: 0.9rem;
   }
 
-  /* ── STAT CARDS ── */
   .stat-card {
       background: rgba(8,16,34,0.90);
       border: 1px solid rgba(30,55,100,0.7); border-radius: 10px;
@@ -200,7 +164,6 @@ st.markdown("""
   }
   .stat-unit { font-size: 0.68rem; color: #4a6890; margin-left: 3px; }
 
-  /* ── WIDGET OVERRIDES ── */
   .stTextInput > div > div > input {
       background: rgba(8,18,38,0.85) !important;
       border: 1px solid rgba(40,70,120,0.7) !important;
@@ -222,7 +185,6 @@ st.markdown("""
       box-shadow: 0 0 20px rgba(0,212,255,0.30) !important;
   }
 
-  /* ── ANIMATIONS ── */
   @keyframes fadeUp {
       from { opacity: 0; transform: translateY(16px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -274,15 +236,8 @@ def make_fig(w=13, h=4.2):
 
 
 # =============================================================================
-# PIPELINE — returns plain numpy arrays so @st.cache_data can pickle them
+# PIPELINE
 # =============================================================================
-# FIX: The previous version returned LightCurve objects, which contain
-# astropy Time objects with custom __reduce__ methods that Streamlit's
-# pickle-based cache cannot serialise → "Cannot serialize ... tuple" error.
-#
-# Solution: extract all data to plain numpy arrays BEFORE returning from
-# any @st.cache_data function. The LightCurve objects are only used internally
-# and are never stored in Streamlit's cache.
 
 def clear_lk_cache():
     for path in [Path.home() / ".lightkurve" / "cache",
@@ -294,17 +249,6 @@ def clear_lk_cache():
 
 @st.cache_data(show_spinner=False)
 def fetch_and_clean(target: str, quarter: int):
-    """
-    Download + clean the light curve and return PLAIN NUMPY ARRAYS only.
-    All six arrays are pickle-serialisable so @st.cache_data works correctly.
-
-    Returns
-    -------
-    raw_time, raw_flux, raw_ferr   — normalised raw light curve
-    trend_time, trend_flux         — Savitzky-Golay fitted trend
-    flat_time, flat_flux, flat_ferr — flattened (after SG division)
-    clean_time, clean_flux, clean_ferr — after outlier removal (BLS input)
-    """
     result = lk.search_lightcurve(
         target, mission="Kepler", quarter=quarter,
         cadence="long", author="Kepler",
@@ -329,7 +273,6 @@ def fetch_and_clean(target: str, quarter: int):
     )
     lc_clean = lc_flat.remove_outliers(sigma=4.0, sigma_lower=1e5)
 
-    # ── Extract to plain numpy arrays — NO LightCurve objects returned ────────
     return (
         np.array(lc_raw.time.value),   np.array(lc_raw.flux.value),   np.array(lc_raw.flux_err.value),
         np.array(lc_trend.time.value), np.array(lc_trend.flux.value),
@@ -340,7 +283,6 @@ def fetch_and_clean(target: str, quarter: int):
 
 @st.cache_data(show_spinner=False)
 def run_bls_cached(time_arr, flux_arr, err_arr):
-    """BLS on plain numpy arrays — fully pickle-safe."""
     bls = BoxLeastSquares(
         time_arr * u.day,
         flux_arr * u.dimensionless_unscaled,
@@ -367,7 +309,6 @@ def run_bls_cached(time_arr, flux_arr, err_arr):
 
 
 def phase_fold_arrays(clean_time, clean_flux, clean_ferr, period, t0):
-    """Fold + bin. Uses AstropyTime directly — lk.time.Time doesn't exist."""
     lc_tmp = lk.LightCurve(
         time=AstropyTime(clean_time, format="bkjd", scale="tdb"),
         flux=clean_flux,
@@ -391,7 +332,7 @@ def phase_fold_arrays(clean_time, clean_flux, clean_ferr, period, t0):
 
 
 # =============================================================================
-# PLOT BUILDERS — accept plain numpy arrays
+# PLOT BUILDERS
 # =============================================================================
 
 def plot_raw(raw_time, raw_flux, raw_ferr, trend_time, trend_flux):
@@ -470,7 +411,6 @@ def plot_bls(periods, power, clean_time, clean_flux, clean_ferr,
     for ax in (top_ax, fold_ax, zoom_ax):
         apply_dark_theme(ax)
 
-    # Periodogram
     peak_pwr = float(power.max())
     top_ax.plot(periods, power, color=C_PERI, lw=0.7, alpha=0.85, zorder=2)
     top_ax.fill_between(periods, 0, power, color=C_PERI, alpha=0.08, zorder=1)
@@ -500,7 +440,6 @@ def plot_bls(periods, power, clean_time, clean_flux, clean_ferr,
     top_ax.set_title("① BLS Periodogram — tallest spike = planet orbital period",
                      color=C_TICK, fontsize=9, pad=6, loc="left")
 
-    # Full fold
     valid = ~np.isnan(bin_m)
     fold_ax.scatter(phase_hours, fold_flux, color=C_FOLD, s=1.8, alpha=0.22, zorder=2)
     fold_ax.errorbar(bin_c[valid], bin_m[valid], yerr=bin_e[valid],
@@ -517,7 +456,6 @@ def plot_bls(periods, power, clean_time, clean_flux, clean_ferr,
                    facecolor=BG_PANEL, edgecolor="#1e2d50", labelcolor="white")
     fold_ax.set_title("② Full Phase-Folded Curve", color=C_TICK, fontsize=9, pad=5, loc="left")
 
-    # Zoomed transit
     zoom_h   = dur_h * 4
     zs       = np.abs(phase_hours) <= zoom_h
     zb       = valid & (np.abs(bin_c) <= zoom_h)
@@ -567,6 +505,24 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
+    # ── QUARTER SELECTOR (THE FIX) ────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown('<div class="sidebar-label">KEPLER QUARTER</div>', unsafe_allow_html=True)
+    quarter = st.slider(
+        "quarter_slider",
+        min_value=0,
+        max_value=17,
+        value=6,
+        label_visibility="collapsed",
+        help="Kepler observed in 90-day quarters (Q0–Q17). Q6 is a good default for most targets.",
+    )
+    st.markdown(
+        f"<div style='font-size:0.68rem;color:#2a4a6a;margin-top:-6px;margin-bottom:8px;'>"
+        f"Selected: <span style='color:#00d4ff'>Q{quarter}</span> &nbsp;·&nbsp; "
+        f"Quarters available: 0 – 17</div>",
+        unsafe_allow_html=True,
+    )
+    # ─────────────────────────────────────────────────────────────────────────
 
     st.markdown("---")
     st.markdown("""
@@ -586,10 +542,35 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
+    st.markdown("---")
+    st.markdown("### 👨‍🚀 About the Developer")
+    with st.container():
+        st.markdown(f"""
+        **Name:** Kishore (Kai)
+
+        **Academic Status:**
+        Recently completed 12th Grade Examinations.
+
+        **Goal:**
+        🎯 **MIT Class of 2031**
+        *Astrophysics & Aeronautical Engineering*.
+
+        **Technical Portfolio:**
+        *   **ATS-1:** Specialized Asteroid Tracker System.
+        *   **Exoplanet Hunter:** NASA MAST-based detection engine.
+        """)
+    st.info("Searching the cosmos for the next Earth-like world.")
+
+
+# =============================================================================
+# SESSION STATE
+# =============================================================================
+
 if 'search_btn' not in st.session_state:
     st.session_state.search_btn = False
-if 'st.session_state.star_name' not in st.session_state:
-    st.session_state.star_name = "Kepler-10" # Default value
+if 'star_name' not in st.session_state:
+    st.session_state.star_name = "Kepler-10"
+
 # =============================================================================
 # MAIN PAGE
 # =============================================================================
@@ -614,17 +595,15 @@ if not st.session_state.search_btn:
             </div>""", unsafe_allow_html=True)
 
 if not st.session_state.search_btn:
-# --- NEW CENTERED SEARCH HUD ---
-    st.markdown("<br>", unsafe_allow_html=True) 
+    st.markdown("<br>", unsafe_allow_html=True)
 
     st.session_state.star_name = st.text_input(
         "SEARCH THE COSMOS",
-        value=st.session_state.star_name, 
-        placeholder="Enter Star Name (e.g., Kepler-10)...", 
+        value=st.session_state.star_name,
+        placeholder="Enter Star Name (e.g., Kepler-10)...",
         label_visibility="collapsed"
     )
 
-    # Recommendations Chips
     st.markdown("""
         <div style="display: flex; gap: 15px; justify-content: center; margin-top: -10px; margin-bottom: 20px;">
             <span style="font-size: 0.8rem; color: #555;">Suggestions:</span>
@@ -640,6 +619,8 @@ if not st.session_state.search_btn:
             st.rerun()
 
     st.stop()
+
+# =============================================================================
 # RUN PIPELINE
 # =============================================================================
 
@@ -664,6 +645,7 @@ with st.spinner("📡 Contacting NASA MAST archive and cleaning data …"):
             "- Try a different quarter (0–17)\n"
             "- **SSL error?** Your ISP is blocking NASA — enable a VPN and retry"
         )
+        st.session_state.search_btn = False
         st.stop()
 
 with st.spinner(f"🔍 Running BLS ({BLS_MIN_PERIOD}–{BLS_MAX_PERIOD} d) — 30–60 s …"):
@@ -729,6 +711,14 @@ with st.spinner("Rendering BLS plot …"):
     fig_bls = plot_bls(periods, power, clean_t, clean_f, clean_fe,
                        best_period, best_t0, best_duration, best_depth)
 st.pyplot(fig_bls, use_container_width=True); plt.close(fig_bls)
+
+# Back button
+st.markdown("<br>", unsafe_allow_html=True)
+_, back_col, _ = st.columns([1, 2, 1])
+with back_col:
+    if st.button("🔄 Search Another Star", use_container_width=True):
+        st.session_state.search_btn = False
+        st.rerun()
 
 # Footer
 st.markdown("---")
