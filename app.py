@@ -705,3 +705,28 @@ st.markdown(f"""
   {t_span:.1f} d · Noise {noise_ppm:.0f} ppm ·
   P = {best_period:.5f} d · Depth {best_depth*1e6:.0f} ppm · NASA MAST
 </div>""", unsafe_allow_html=True)
+
+# --- ABOUT THE DEVELOPER SECTION ---
+with st.sidebar:
+    st.markdown("---")
+    st.markdown("### 👨‍🚀 About the Developer")
+    
+    # Using a container for a clean look
+    with st.container():
+        st.markdown(f"""
+        **Name:** Kishore (Kai)
+        
+        **Academic Status:** 
+        Recently completed 12th Grade Examinations.
+        
+        **Goal:** 
+        🎯 **MIT Class of 2031**  
+        *Astrophysics & Aeronautical Engineering*.
+        
+        **Technical Portfolio:**
+        *   **ATS-1:** Specialized Asteroid Tracker System.
+        *   **Exoplanet Hunter:** NASA MAST-based detection engine.
+        """)
+        
+    # Optional: Add a small inspirational quote or link
+    st.info("Searching the cosmos for the next Earth-like world.")
