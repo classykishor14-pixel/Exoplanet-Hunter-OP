@@ -586,7 +586,8 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-
+if 'search_btn' not in st.session_state:
+    st.session_state.search_btn = False
 # =============================================================================
 # MAIN PAGE
 # =============================================================================
@@ -609,8 +610,7 @@ if not st.session_state.search_btn:
               <div style='font-family:Space Mono,monospace;font-size:0.9rem;
                           color:#e8f4ff;margin-top:4px;'>{value}</div>
             </div>""", unsafe_allow_html=True)
-if 'search_btn' not in st.session_state:
-    st.session_state.search_btn = False
+
 if not st.session_state.search_btn:
 # --- NEW CENTERED SEARCH HUD ---
     st.markdown("<br>", unsafe_allow_html=True) 
