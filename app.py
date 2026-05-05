@@ -1,26 +1,25 @@
 """
 ==============================================================================
   EXOPLANET DETECTION SYSTEM — Streamlit Web Application
-  app.py  [FULL INTEGRATION: BLS + Composition Classification]
+  app.py  [UPGRADED: Neon Space Mono + Ken Burns Zoom + Glassmorphism]
 ==============================================================================
 HOW TO RUN
     pip install streamlit lightkurve astropy matplotlib numpy
     streamlit run app.py
 ==============================================================================
 
-FEATURES:
+NEW FEATURES:
   • Ken Burns cosmic drift animation
   • Neon Space Mono terminal aesthetic
-  • BLS planet detection pipeline
-  • NASA Exoplanet Archive composition classification
-  • Lava World detection with temperature thresholds
+  • Glowing cyan/teal text effects
+  • CRT scanline overlay (optional)
 """
 
 import streamlit as st
 
 # set_page_config MUST be the absolute first Streamlit call in the file
 st.set_page_config(
-    page_title="Exoplanet Hunter | BLS Detection & Composition Analysis",
+    page_title="Exoplanet Hunter",
     page_icon="🔭",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -29,7 +28,6 @@ st.set_page_config(
 import warnings
 import shutil
 from pathlib import Path
-from typing import Tuple, Dict, Optional
 
 import numpy as np
 import matplotlib
@@ -70,202 +68,51 @@ C_PERI   = "#00d4ff"
 C_ANNO   = "#ffe66d"
 
 # =============================================================================
-# EXOPLANET COMPOSITION CLASSIFICATION MODULE
-# NASA Exoplanet Archive Logic
-# =============================================================================
-
-def calculate_density(mass_earth: float, radius_earth: float) -> float:
-    """
-    Calculate planet density in g/cm³
-    
-    Parameters:
-    -----------
-    mass_earth : float
-        Planet mass in Earth masses (M🜨)
-    radius_earth : float
-        Planet radius in Earth radii (R🜨)
-    
-    Returns:
-    --------
-    float
-        Density in g/cm³
-    """
-    RHO_EARTH = 5.514  # g/cm³
-    density = RHO_EARTH * (mass_earth) / (radius_earth ** 3)
-    return density
-
-
-def categorize_by_density(density: float) -> Tuple[str, str, Dict[str, float]]:
-    """
-    Categorize planet based on density using NASA Exoplanet Archive thresholds
-    """
-    
-    if density >= 8.0:
-        primary = "Iron World"
-        detail = "Ultra-dense metallic planet (Mercury-like)"
-        confidence = min(0.95, (density - 8.0) / 5.0 + 0.8)
-        
-    elif density >= 5.0:
-        primary = "Rocky"
-        if density >= 6.5:
-            detail = "Iron-rich rocky super-Mercury"
-            confidence = 0.85 + (density - 6.5) / 3.0
-        elif density >= 5.5:
-            detail = "Earth-like silicate planet"
-            confidence = 0.90
-        else:
-            detail = "Low-density rocky planet (porous)"
-            confidence = 0.80
-    
-    elif density >= 3.0:
-        primary = "Super-Earth"
-        if density >= 4.0:
-            detail = "Dense super-Earth with possible iron core"
-            confidence = 0.85
-        else:
-            detail = "Low-density super-Earth (water-rich likely)"
-            confidence = 0.80
-    
-    elif density >= 1.5:
-        primary = "Sub-Neptune"
-        if density >= 2.2:
-            detail = "Dense sub-Neptune with rocky core and thick atmosphere"
-            confidence = 0.80
-        else:
-            detail = "Puffy sub-Neptune with extended H/He envelope"
-            confidence = 0.75
-    
-    elif density >= 0.8:
-        primary = "Gas Giant"
-        if density >= 1.2:
-            detail = "Warm Jupiter with moderate density"
-            confidence = 0.90
-        elif density >= 1.0:
-            detail = "Typical gas giant (Saturn-like)"
-            confidence = 0.85
-        else:
-            detail = "Low-density puffy Jupiter (hot Jupiter)"
-            confidence = 0.80
-    
-    elif density >= 0.3:
-        primary = "Gas Giant"
-        detail = "Very low-density gas giant (Saturn-like)"
-        confidence = 0.85
-    
-    else:
-        primary = "Hot Jupiter"
-        detail = "Extremely puffy hot Jupiter (highly inflated atmosphere)"
-        confidence = 0.70
-    
-    return primary, detail, {
-        "density_g_cm3": round(density, 3),
-        "confidence": round(confidence, 2),
-        "reference_earth_density": 5.514
-    }
-
-
-def get_planet_composition(
-    planet_mass: float, 
-    planet_radius: float,
-    mass_units: str = "earth",
-    radius_units: str = "earth",
-    temperature: Optional[float] = None,
-    temperature_units: str = "kelvin"
-) -> Dict[str, any]:
-    """
-    Categorize an exoplanet's composition using NASA Exoplanet Archive logic.
-    """
-    
-    EARTH_MASS_KG = 5.9722e24
-    EARTH_RADIUS_M = 6.371e6
-    
-    mass_earth = planet_mass
-    radius_earth = planet_radius
-    
-    if mass_units.lower() == 'jupiter':
-        mass_earth = planet_mass * 317.8
-    elif mass_units.lower() == 'kg':
-        mass_earth = planet_mass / EARTH_MASS_KG
-    elif mass_units.lower() == 'g':
-        mass_earth = (planet_mass / 1000) / EARTH_MASS_KG
-    
-    if radius_units.lower() == 'jupiter':
-        radius_earth = planet_radius * 10.97
-    elif radius_units.lower() == 'km':
-        radius_earth = planet_radius / EARTH_RADIUS_M * 1000
-    elif radius_units.lower() == 'm':
-        radius_earth = planet_radius / EARTH_RADIUS_M
-    
-    density = calculate_density(mass_earth, radius_earth)
-    composition, subtype, metrics = categorize_by_density(density)
-    
-    is_lava_world = False
-    lava_world_threshold_k = 1800
-    
-    temperature_k = None
-    if temperature is not None:
-        if temperature_units.lower() == 'celsius':
-            temperature_k = temperature + 273.15
-        elif temperature_units.lower() == 'fahrenheit':
-            temperature_k = (temperature - 32) * 5/9 + 273.15
-        else:
-            temperature_k = temperature
-        
-        if (temperature_k >= lava_world_threshold_k and 
-            ((density >= 4.5) or (composition in ['Rocky', 'Super-Earth', 'Iron World'])) and
-            composition != 'Gas Giant'):
-            is_lava_world = True
-            if composition == 'Rocky':
-                subtype = "Lava World (magma ocean on dayside)"
-            elif composition == 'Super-Earth':
-                subtype = "Lava Super-Earth (tidally locked magma ocean)"
-            else:
-                subtype = "Ultra-hot Lava World (partial magma cover)"
-    
-    if density < 0.3 and composition == 'Gas Giant':
-        subtype = "Ultra-puffy hot Jupiter (inflated atmosphere)"
-    
-    result = {
-        'composition': composition,
-        'subtype': subtype,
-        'density_g_cm3': metrics['density_g_cm3'],
-        'confidence': metrics['confidence'],
-        'mass_earth': round(mass_earth, 4),
-        'radius_earth': round(radius_earth, 4),
-        'is_lava_world': is_lava_world,
-        'temperature_k': temperature_k if temperature is not None else None,
-    }
-    
-    return result
-
-
-# =============================================================================
 # ░░░  MASTER CSS — NEON SPACE MONO + KEN BURNS + GLASSMORPHISM  ░░░
 # =============================================================================
 st.markdown("""
 <style>
+/* ── Google Fonts (Space Mono for terminal feel) ── */
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Share+Tech+Mono&display=swap');
 
+/* ════════════════════════════════════════════════════════════════════════════
+   KEN BURNS DRIFT EFFECT - Cosmic Animation
+════════════════════════════════════════════════════════════════════════════ */
+
 @keyframes cosmicZoom {
-    0% { transform: scale(1.00); }
-    50% { transform: scale(1.12); }
-    100% { transform: scale(1.00); }
+    0% {
+        transform: scale(1.00);
+    }
+    50% {
+        transform: scale(1.12);
+    }
+    100% {
+        transform: scale(1.00);
+    }
 }
 
 @keyframes starDrift {
-    0% { transform: translate(0%, 0%) scale(1); opacity: 0.5; }
-    50% { transform: translate(-2%, -1.5%) scale(1.08); opacity: 0.9; }
-    100% { transform: translate(0%, 0%) scale(1); opacity: 0.5; }
+    0% {
+        transform: translate(0%, 0%) scale(1);
+        opacity: 0.5;
+    }
+    50% {
+        transform: translate(-2%, -1.5%) scale(1.08);
+        opacity: 0.9;
+    }
+    100% {
+        transform: translate(0%, 0%) scale(1);
+        opacity: 0.5;
+    }
 }
 
-@keyframes neonPulse {
-    0%, 100% { text-shadow: 0 0 5px rgba(0,255,255,0.3), 0 0 10px rgba(0,255,255,0.5), 0 0 20px rgba(0,255,255,0.7), 0 0 40px rgba(0,100,255,0.5); opacity: 1; }
-    50% { text-shadow: 0 0 10px rgba(0,255,255,0.5), 0 0 20px rgba(0,255,255,0.7), 0 0 30px rgba(0,255,255,0.9), 0 0 60px rgba(0,100,255,0.7); opacity: 0.95; }
-}
-
-@keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
+@keyframes scanline {
+    0% {
+        transform: translateY(-100%);
+    }
+    100% {
+        transform: translateY(100%);
+    }
 }
 
 .cosmic-drift {
@@ -279,7 +126,14 @@ st.markdown("""
     animation: cosmicZoom 28s ease-in-out infinite alternate;
     will-change: transform;
     background-color: #02030a !important;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.68' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23g)' opacity='0.04'/%3E%3C/svg%3E"), radial-gradient(ellipse 120% 120% at 50% 50%, transparent 28%, rgba(1,2,10,0.80) 72%, rgba(1,2,8,0.97) 100%), radial-gradient(ellipse 80% 65% at 52% 48%, rgba(8,18,55,0.55) 0%, transparent 70%), radial-gradient(ellipse 52% 38% at 82% 82%, rgba(210,95,12,0.30) 0%, rgba(160,55,8,0.14) 45%, transparent 72%), radial-gradient(ellipse 48% 42% at 80% 14%, rgba(0,185,230,0.34) 0%, rgba(0,100,175,0.16) 50%, transparent 78%), radial-gradient(ellipse 68% 58% at 16% 52%, rgba(105,22,165,0.44) 0%, rgba(55,10,95,0.22) 48%, transparent 78%), linear-gradient(158deg, #04060f 0%, #020309 55%, #030509 100%) !important;
+    background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.68' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23g)' opacity='0.04'/%3E%3C/svg%3E"),
+        radial-gradient(ellipse 120% 120% at 50% 50%, transparent 28%, rgba(1,2,10,0.80) 72%, rgba(1,2,8,0.97) 100%),
+        radial-gradient(ellipse 80% 65% at 52% 48%, rgba(8,18,55,0.55) 0%, transparent 70%),
+        radial-gradient(ellipse 52% 38% at 82% 82%, rgba(210,95,12,0.30) 0%, rgba(160,55,8,0.14) 45%, transparent 72%),
+        radial-gradient(ellipse 48% 42% at 80% 14%, rgba(0,185,230,0.34) 0%, rgba(0,100,175,0.16) 50%, transparent 78%),
+        radial-gradient(ellipse 68% 58% at 16% 52%, rgba(105,22,165,0.44) 0%, rgba(55,10,95,0.22) 48%, transparent 78%),
+        linear-gradient(158deg, #04060f 0%, #020309 55%, #030509 100%) !important;
     background-size: 400px 400px, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100% !important;
     background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat !important;
     background-attachment: scroll !important;
@@ -297,11 +151,50 @@ st.markdown("""
     content: "";
     position: absolute;
     inset: 0;
-    background-image: radial-gradient(1.2px 1.2px at 8% 12%, rgba(255,255,255,0.60) 0%, transparent 100%), radial-gradient(1.0px 1.0px at 22% 78%, rgba(255,255,255,0.45) 0%, transparent 100%), radial-gradient(1.2px 1.2px at 37% 31%, rgba(180,220,255,0.55) 0%, transparent 100%), radial-gradient(1.0px 1.0px at 55% 9%, rgba(255,255,255,0.50) 0%, transparent 100%), radial-gradient(1.2px 1.2px at 68% 62%, rgba(200,230,255,0.42) 0%, transparent 100%), radial-gradient(1.0px 1.0px at 81% 24%, rgba(255,255,255,0.56) 0%, transparent 100%), radial-gradient(1.2px 1.2px at 92% 87%, rgba(180,210,255,0.46) 0%, transparent 100%), radial-gradient(1.0px 1.0px at 14% 55%, rgba(255,255,255,0.38) 0%, transparent 100%), radial-gradient(1.2px 1.2px at 46% 90%, rgba(255,255,255,0.52) 0%, transparent 100%), radial-gradient(1.0px 1.0px at 73% 43%, rgba(200,240,255,0.42) 0%, transparent 100%);
+    background-image:
+        radial-gradient(1.2px 1.2px at  8%  12%, rgba(255,255,255,0.60) 0%, transparent 100%),
+        radial-gradient(1.0px 1.0px at 22%  78%, rgba(255,255,255,0.45) 0%, transparent 100%),
+        radial-gradient(1.2px 1.2px at 37%  31%, rgba(180,220,255,0.55) 0%, transparent 100%),
+        radial-gradient(1.0px 1.0px at 55%   9%, rgba(255,255,255,0.50) 0%, transparent 100%),
+        radial-gradient(1.2px 1.2px at 68%  62%, rgba(200,230,255,0.42) 0%, transparent 100%),
+        radial-gradient(1.0px 1.0px at 81%  24%, rgba(255,255,255,0.56) 0%, transparent 100%),
+        radial-gradient(1.2px 1.2px at 92%  87%, rgba(180,210,255,0.46) 0%, transparent 100%),
+        radial-gradient(1.0px 1.0px at 14%  55%, rgba(255,255,255,0.38) 0%, transparent 100%),
+        radial-gradient(1.2px 1.2px at 46%  90%, rgba(255,255,255,0.52) 0%, transparent 100%),
+        radial-gradient(1.0px 1.0px at 73%  43%, rgba(200,240,255,0.42) 0%, transparent 100%),
+        radial-gradient(0.8px 0.8px at 91%  33%, rgba(255,220,180,0.48) 0%, transparent 100%),
+        radial-gradient(1.1px 1.1px at 47%  67%, rgba(180,200,255,0.44) 0%, transparent 100%),
+        radial-gradient(0.9px 0.9px at 63%  88%, rgba(255,255,210,0.52) 0%, transparent 100%);
     background-size: 100% 100%;
     background-repeat: no-repeat;
 }
 
+/* Optional CRT scanline effect (uncomment to enable) */
+/* 
+.scanline {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        to bottom,
+        transparent 50%,
+        rgba(0, 0, 0, 0.3) 50%
+    );
+    background-size: 100% 4px;
+    pointer-events: none;
+    z-index: 999;
+    animation: scanline 8s linear infinite;
+}
+*/
+
+/* ════════════════════════════════════════════════════════════════════════════
+   NEON SPACE MONO - HERO TITLE & SUB-HEADERS
+   Futuristic NASA terminal aesthetic with glow effects
+════════════════════════════════════════════════════════════════════════════ */
+
+/* Main Hero Title - Neon Space Mono */
 .hero-title {
     font-family: 'Space Mono', 'Share Tech Mono', monospace;
     font-size: 3.2rem;
@@ -310,11 +203,40 @@ st.markdown("""
     line-height: 1.05;
     margin-bottom: 0.28rem;
     text-align: center;
+    
+    /* Neon cyan core */
     color: #00ffff;
-    text-shadow: 0 0 5px rgba(0,255,255,0.3), 0 0 10px rgba(0,255,255,0.5), 0 0 20px rgba(0,255,255,0.7), 0 0 40px rgba(0,100,255,0.5);
+    text-shadow: 
+        0 0 5px rgba(0, 255, 255, 0.3),
+        0 0 10px rgba(0, 255, 255, 0.5),
+        0 0 20px rgba(0, 255, 255, 0.7),
+        0 0 40px rgba(0, 100, 255, 0.5),
+        0 0 80px rgba(0, 150, 255, 0.3);
+    
     animation: neonPulse 3s ease-in-out infinite;
 }
 
+@keyframes neonPulse {
+    0%, 100% {
+        text-shadow: 
+            0 0 5px rgba(0, 255, 255, 0.3),
+            0 0 10px rgba(0, 255, 255, 0.5),
+            0 0 20px rgba(0, 255, 255, 0.7),
+            0 0 40px rgba(0, 100, 255, 0.5);
+        opacity: 1;
+    }
+    50% {
+        text-shadow: 
+            0 0 10px rgba(0, 255, 255, 0.5),
+            0 0 20px rgba(0, 255, 255, 0.7),
+            0 0 30px rgba(0, 255, 255, 0.9),
+            0 0 60px rgba(0, 100, 255, 0.7),
+            0 0 100px rgba(0, 150, 255, 0.5);
+        opacity: 0.95;
+    }
+}
+
+/* Hero Subtitle - Glowing Teal */
 .hero-sub {
     font-family: 'Space Mono', 'Share Tech Mono', monospace;
     font-size: 0.85rem;
@@ -322,24 +244,46 @@ st.markdown("""
     text-transform: uppercase;
     text-align: center;
     margin-bottom: 2rem;
+    
     color: #00ccaa;
-    text-shadow: 0 0 3px rgba(0,204,170,0.5), 0 0 8px rgba(0,204,170,0.3);
+    text-shadow: 
+        0 0 3px rgba(0, 204, 170, 0.5),
+        0 0 8px rgba(0, 204, 170, 0.3);
+    
+    animation: subPulse 4s ease-in-out infinite;
 }
 
+@keyframes subPulse {
+    0%, 100% {
+        text-shadow: 0 0 3px rgba(0, 204, 170, 0.5), 0 0 8px rgba(0, 204, 170, 0.3);
+        letter-spacing: 0.2em;
+    }
+    50% {
+        text-shadow: 0 0 6px rgba(0, 204, 170, 0.8), 0 0 12px rgba(0, 204, 170, 0.5);
+        letter-spacing: 0.22em;
+    }
+}
+
+/* Section Headers - Glowing Cyan Terminal Style */
 .section-header {
     font-family: 'Space Mono', 'Share Tech Mono', monospace;
     font-size: 0.72rem;
     letter-spacing: 0.3em;
     text-transform: uppercase;
     color: #00ddff;
-    border-bottom: 1px solid rgba(0,212,255,0.42);
+    border-bottom: 1px solid rgba(0, 212, 255, 0.42);
     padding-bottom: 8px;
     margin: 2.4rem 0 1.1rem 0;
-    text-shadow: 0 0 4px rgba(0,221,255,0.4), 0 0 8px rgba(0,221,255,0.2);
+    
+    text-shadow: 
+        0 0 4px rgba(0, 221, 255, 0.4),
+        0 0 8px rgba(0, 221, 255, 0.2);
+    
     position: relative;
     overflow: hidden;
 }
 
+/* Terminal cursor effect for section headers */
 .section-header::before {
     content: ">";
     position: absolute;
@@ -349,17 +293,42 @@ st.markdown("""
     animation: blink 1s step-end infinite;
 }
 
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+/* Sidebar Header - Neon Pulse */
+.sidebar-header {
+    font-family: 'Space Mono', 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: #00ccff;
+    text-shadow: 0 0 5px rgba(0, 204, 255, 0.5);
+}
+
+/* Description text - Terminal style */
 .desc-text {
     font-family: 'Share Tech Mono', monospace;
     font-size: 0.8rem;
     color: #90b4d5;
     line-height: 1.68;
     margin-bottom: 0.95rem;
-    text-shadow: 0 1px 10px rgba(0,0,0,0.80);
-    border-left: 2px solid rgba(0,212,255,0.3);
+    text-shadow: 0 1px 10px rgba(0, 0, 0, 0.80);
+    border-left: 2px solid rgba(0, 212, 255, 0.3);
     padding-left: 14px;
 }
 
+/* Code blocks - Terminal green */
+code {
+    font-family: 'Space Mono', monospace;
+    background: rgba(0, 212, 255, 0.1);
+    color: #00ff88;
+    text-shadow: 0 0 3px rgba(0, 255, 136, 0.5);
+}
+
+/* Sidebar labels - Terminal style */
 .sidebar-label {
     font-family: 'Space Mono', monospace;
     font-size: 0.65rem;
@@ -367,27 +336,10 @@ st.markdown("""
     text-transform: uppercase;
     color: #00ccff;
     margin-bottom: 0.3rem;
-    text-shadow: 0 0 3px rgba(0,204,255,0.3);
+    text-shadow: 0 0 3px rgba(0, 204, 255, 0.3);
 }
 
-.stat-card {
-    background: rgba(5,12,32,0.58);
-    backdrop-filter: blur(20px) saturate(160%);
-    border: 1px solid rgba(0,212,255,0.24);
-    border-radius: 14px;
-    padding: 15px 22px;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 6px 30px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.09);
-    transition: all 0.22s ease;
-}
-
-.stat-card:hover {
-    transform: translateY(-3px) scale(1.01);
-    border-color: rgba(0,212,255,0.55);
-    box-shadow: 0 12px 42px rgba(0,0,0,0.65), 0 0 26px rgba(0,160,255,0.14);
-}
-
+/* Stat card labels */
 .stat-label {
     font-family: 'Space Mono', monospace;
     font-size: 0.60rem;
@@ -395,26 +347,20 @@ st.markdown("""
     text-transform: uppercase;
     color: #00ccaa;
     margin-bottom: 6px;
-    text-shadow: 0 0 3px rgba(0,204,170,0.3);
+    text-shadow: 0 0 3px rgba(0, 204, 170, 0.3);
 }
 
-.stat-value {
+/* Status text */
+.status-text {
     font-family: 'Space Mono', monospace;
-    font-size: 1.24rem;
-    font-weight: 700;
-    color: #eaf4ff;
-    text-shadow: 0 0 16px rgba(0,180,255,0.24);
+    font-size: 0.7rem;
+    color: #00ffcc;
+    text-shadow: 0 0 4px rgba(0, 255, 204, 0.5);
 }
 
-.stat-unit { font-size: 0.67rem; color: #00ccaa; margin-left: 3px; }
-
-.stat-card.blue::before { background: linear-gradient(90deg, #00d4ff, #0070ff); }
-.stat-card.green::before { background: linear-gradient(90deg, #a8ff78, #00d460); }
-.stat-card.gold::before { background: linear-gradient(90deg, #ffe66d, #ff9800); }
-.stat-card.pink::before { background: linear-gradient(90deg, #ff4f6e, #ff0055); }
-.stat-card.cyan::before { background: linear-gradient(90deg, #4a7cff, #00d4ff); }
-.stat-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; border-radius: 14px 14px 0 0; }
-
+/* ════════════════════════════════════════════════════════════════════════════
+   BASE CONTAINERS — transparent so the animated background shows through
+════════════════════════════════════════════════════════════════════════════ */
 html, body, .stApp, [data-testid="stAppViewContainer"],
 [data-testid="stMain"], [data-testid="stHeader"], [data-testid="stBottom"],
 [data-testid="stDecoration"], section[data-testid="stSidebar"] ~ div, .main {
@@ -422,60 +368,305 @@ html, body, .stApp, [data-testid="stAppViewContainer"],
     background-color: transparent !important;
 }
 
+/* ════════════════════════════════════════════════════════════════════════════
+   GLASSMORPHISM — MAIN CONTENT PANEL
+════════════════════════════════════════════════════════════════════════════ */
 .main .block-container {
-    background: rgba(3,7,22,0.46) !important;
-    backdrop-filter: blur(22px) saturate(170%) brightness(0.95) !important;
+    background: rgba(3, 7, 22, 0.46) !important;
+    backdrop-filter:          blur(22px) saturate(170%) brightness(0.95) !important;
+    -webkit-backdrop-filter:  blur(22px) saturate(170%) brightness(0.95) !important;
     border-radius: 20px !important;
     padding: 2rem 2.5rem !important;
     margin-top: 0.6rem !important;
-    border: 1px solid rgba(0,212,255,0.15) !important;
+    border: 1px solid rgba(0, 212, 255, 0.15) !important;
+    box-shadow:
+        0 12px 48px rgba(0, 0, 0, 0.60),
+        inset 0  1px 0 rgba(255, 255, 255, 0.07),
+        inset 0 -1px 0 rgba(0, 212, 255, 0.1) !important;
 }
 
+/* ════════════════════════════════════════════════════════════════════════════
+   GLASSMORPHISM — SIDEBAR
+════════════════════════════════════════════════════════════════════════════ */
 section[data-testid="stSidebar"] {
-    background: rgba(3,7,22,0.72) !important;
-    backdrop-filter: blur(28px) saturate(180%) !important;
-    border-right: 1px solid rgba(0,212,255,0.14) !important;
+    background: rgba(3, 7, 22, 0.72) !important;
+    backdrop-filter:         blur(28px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+    border-right: 1px solid rgba(0, 212, 255, 0.14) !important;
+    box-shadow:
+        4px 0 36px rgba(0, 0, 0, 0.60),
+        inset -1px 0 0 rgba(0, 212, 255, 0.08) !important;
     min-width: 268px !important;
+    max-width: 325px !important;
+    transform: none !important;
+    visibility: visible !important;
+    display: block !important;
 }
 
+/* Hide collapse toggle — sidebar stays open permanently */
+button[data-testid="collapsedControl"],
+[data-testid="collapsedControl"],
+[data-testid="stSidebarCollapseButton"],
+.css-1lcbmhc,
+.css-1d391kg { display: none !important; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   GLASSMORPHISM — MATPLOTLIB FIGURE WRAPPERS
+════════════════════════════════════════════════════════════════════════════ */
 div[data-testid="stPyplotRootElement"] {
-    background: rgba(2,6,18,0.50) !important;
-    backdrop-filter: blur(12px) saturate(140%) !important;
+    background: rgba(2, 6, 18, 0.50) !important;
+    backdrop-filter:         blur(12px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
     border-radius: 16px !important;
-    border: 1px solid rgba(0,212,255,0.20) !important;
+    border: 1px solid rgba(0, 212, 255, 0.20) !important;
     padding: 8px !important;
+    box-shadow:
+        0 6px 30px rgba(0, 0, 0, 0.55),
+        inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
 }
 
-button[data-testid="collapsedControl"] { display: none !important; }
+/* ════════════════════════════════════════════════════════════════════════════
+   GLASSMORPHISM — ALERT / INFO / ERROR / SPINNER BOXES
+════════════════════════════════════════════════════════════════════════════ */
+div[data-testid="stExpander"],
+div[data-testid="stInfo"],
+div[data-testid="stSuccess"],
+div[data-testid="stWarning"],
+div[data-testid="stError"] {
+    background: rgba(5, 12, 30, 0.62) !important;
+    backdrop-filter:         blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(0, 212, 255, 0.22) !important;
+    border-radius: 12px !important;
+}
 
-::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-track { background: rgba(2,5,16,0.55); }
-::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.36); border-radius: 4px; }
+div[data-testid="stSpinner"] > div {
+    background: rgba(3, 9, 24, 0.70) !important;
+    backdrop-filter:         blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(0, 212, 255, 0.18) !important;
+}
 
+/* ════════════════════════════════════════════════════════════════════════════
+   GLASSMORPHISM — STAT CARDS
+════════════════════════════════════════════════════════════════════════════ */
+.stat-card {
+    background:              rgba(5, 12, 32, 0.58);
+    backdrop-filter:         blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid rgba(0, 212, 255, 0.24);
+    border-radius: 14px;
+    padding: 15px 22px;
+    flex: 1; min-width: 140px;
+    position: relative; overflow: hidden;
+    box-shadow:
+        0 6px 30px rgba(0, 0, 0, 0.55),
+        inset 0  1px 0 rgba(255, 255, 255, 0.09),
+        inset 0 -1px 0 rgba(0, 212, 255, 0.15);
+    transition: transform 0.22s ease, box-shadow 0.28s ease, border-color 0.28s ease;
+}
+.stat-card:hover {
+    transform: translateY(-3px) scale(1.01);
+    box-shadow:
+        0 12px 42px rgba(0, 0, 0, 0.65),
+        0  0   26px rgba(0, 160, 255, 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.11);
+    border-color: rgba(0, 212, 255, 0.55);
+}
+
+/* Coloured accent bar along the top edge of each card */
+.stat-card::before {
+    content: "";
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    border-radius: 14px 14px 0 0;
+}
+
+.stat-card.blue::before  { background: linear-gradient(90deg, #00d4ff, #0070ff); }
+.stat-card.green::before { background: linear-gradient(90deg, #a8ff78, #00d460); }
+.stat-card.gold::before  { background: linear-gradient(90deg, #ffe66d, #ff9800); }
+.stat-card.pink::before  { background: linear-gradient(90deg, #ff4f6e, #ff0055); }
+.stat-card.cyan::before  { background: linear-gradient(90deg, #4a7cff, #00d4ff); }
+
+.stat-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.24rem;
+    font-weight: 700;
+    color: #eaf4ff;
+    text-shadow: 0 0 16px rgba(0, 180, 255, 0.24);
+}
+
+.stat-unit { font-size: 0.67rem; color: #00ccaa; margin-left: 3px; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   TYPOGRAPHY
+════════════════════════════════════════════════════════════════════════════ */
+html, body, [class*="css"] {
+    font-family: 'Space Mono', 'Share Tech Mono', monospace;
+    color: #ccdff5;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   GLASSMORPHISM — WIDGET OVERRIDES
+════════════════════════════════════════════════════════════════════════════ */
+.stTextInput > div > div > input {
+    background:              rgba(4, 11, 30, 0.75) !important;
+    backdrop-filter:         blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(0, 212, 255, 0.55) !important;
+    color: #c8d8f0 !important;
+    font-family: 'Space Mono', monospace !important;
+    border-radius: 9px !important;
+    box-shadow:
+        inset 0 2px 12px rgba(0, 0, 0, 0.36),
+        inset 0 1px 0   rgba(255, 255, 255, 0.05) !important;
+}
+.stTextInput > div > div > input:focus {
+    border-color: #00ffff !important;
+    box-shadow:
+        0 0 0 2px rgba(0, 212, 255, 0.22),
+        inset 0 2px 10px rgba(0, 0, 0, 0.30) !important;
+}
+.stTextInput > div > div > input::placeholder { 
+    font-family: 'Space Mono', monospace;
+    color: #2e4a70 !important; 
+}
+
+/* Primary action button - Terminal style */
+.stButton > button[kind="primary"] {
+    background:              rgba(0, 212, 255, 0.07) !important;
+    backdrop-filter:         blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(0, 212, 255, 0.44) !important;
+    color: #00ffff !important;
+    font-family: 'Space Mono', monospace !important;
+    font-size: 0.78rem !important;
+    letter-spacing: 0.12em !important;
+    border-radius: 11px !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07) !important;
+    transition: all 0.24s ease !important;
+    text-transform: uppercase;
+}
+.stButton > button[kind="primary"]:hover {
+    background:  rgba(0, 212, 255, 0.17) !important;
+    border-color: rgba(0, 212, 255, 0.70) !important;
+    box-shadow:
+        0 0 32px rgba(0, 212, 255, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.10) !important;
+    transform: translateY(-1px) !important;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+}
+
+/* Secondary (default) buttons */
+.stButton > button:not([kind="primary"]) {
+    background:              rgba(8, 20, 50, 0.58) !important;
+    backdrop-filter:         blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(0, 212, 255, 0.40) !important;
+    color: #00ccaa !important;
+    font-family: 'Space Mono', monospace !important;
+    border-radius: 9px !important;
+    transition: all 0.22s ease !important;
+}
+.stButton > button:not([kind="primary"]):hover {
+    background:  rgba(10, 28, 65, 0.72) !important;
+    border-color: rgba(0, 212, 255, 0.58) !important;
+    color: #00ffff !important;
+    text-shadow: 0 0 3px rgba(0, 255, 255, 0.3);
+}
+
+/* Slider track glass pill */
+.stSlider > div > div > div {
+    background: rgba(5, 14, 38, 0.68) !important;
+    border-radius: 8px !important;
+}
+
+/* Radio buttons - Terminal style */
+div.row-widget.stRadio > div {
+    flex-direction: row; gap: 15px;
+    justify-content: center; margin-bottom: 10px;
+}
+div.row-widget.stRadio > div > label {
+    background: rgba(5, 12, 32, 0.60) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(0, 212, 255, 0.32) !important;
+    border-radius: 8px !important;
+    padding: 4px 14px !important;
+    color: #00ccaa !important;
+    font-family: 'Space Mono', monospace !important;
+    font-size: 0.78rem !important;
+    transition: all 0.2s ease !important;
+}
+div.row-widget.stRadio > div > label:hover {
+    border-color: rgba(0, 212, 255, 0.65) !important;
+    color: #00ffff !important;
+    text-shadow: 0 0 3px rgba(0, 255, 255, 0.3);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   ANIMATIONS
+════════════════════════════════════════════════════════════════════════════ */
 @keyframes fadeUp {
     from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+    to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes glassIn {
+    from { opacity: 0; transform: scale(0.96) translateY(14px); }
+    to   { opacity: 1; transform: scale(1.00) translateY(0);    }
 }
 
-.animate-in { animation: fadeUp 0.58s cubic-bezier(0.22,0.68,0,1.20) both; }
-.delay-1 { animation-delay: 0.08s; }
-.delay-2 { animation-delay: 0.20s; }
-.delay-3 { animation-delay: 0.34s; }
+.animate-in { animation: fadeUp  0.58s cubic-bezier(0.22, 0.68, 0, 1.20) both; }
+.glass-in   { animation: glassIn 0.62s cubic-bezier(0.22, 0.68, 0, 1.10) both; }
+.delay-1    { animation-delay: 0.08s; }
+.delay-2    { animation-delay: 0.20s; }
+.delay-3    { animation-delay: 0.34s; }
 
+/* ── Misc ── */
 #MainMenu, footer, header { visibility: hidden; }
+
+/* Styled thin scrollbar - Terminal cyan */
+::-webkit-scrollbar       { width: 5px; }
+::-webkit-scrollbar-track { background: rgba(2, 5, 16, 0.55); }
+::-webkit-scrollbar-thumb {
+    background: rgba(0, 212, 255, 0.36);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 212, 255, 0.65); }
+
+/* Sidebar internal divider lines */
+section[data-testid="stSidebar"] hr {
+    border-color: rgba(0, 212, 255, 0.30) !important;
+}
+
+/* Success/Warning/Error text overrides */
+div.element-container div.stAlert {
+    font-family: 'Space Mono', monospace;
+}
 </style>
 
+<!-- KEN BURNS DRIFT LAYER — the animated cosmic background -->
 <div class="cosmic-drift"></div>
 <div class="star-drift"></div>
+<!-- Optional CRT scanline effect (uncomment to enable) -->
+<!-- <div class="scanline"></div> -->
 """, unsafe_allow_html=True)
 
-# ── Sidebar state lock ───────────────────────────────────────────────────────
+# ── Sidebar state lock (session state + JS belt-and-suspenders) ───────────────
 if "sidebar_state" not in st.session_state:
     st.session_state.sidebar_state = "expanded"
-if "search_btn" not in st.session_state:
-    st.session_state.search_btn = False
-if "star_name" not in st.session_state:
-    st.session_state.star_name = "Kepler-10"
+
+st.markdown("""
+<script>
+window.addEventListener('load', function () {
+    setTimeout(function () {
+        var btn = document.querySelector('[data-testid="collapsedControl"]');
+        if (btn) btn.style.display = 'none';
+        var sb = document.querySelector('[data-testid="stSidebar"]');
+        if (sb) { sb.style.minWidth = '268px'; sb.style.transform = 'none'; }
+    }, 600);
+});
+</script>
+""", unsafe_allow_html=True)
 
 
 # =============================================================================
@@ -485,8 +676,7 @@ if "star_name" not in st.session_state:
 def apply_dark_theme(ax):
     ax.set_facecolor("#060e1e")
     for sp in ax.spines.values():
-        sp.set_edgecolor("#00aacc")
-        sp.set_linewidth(0.8)
+        sp.set_edgecolor("#00aacc"); sp.set_linewidth(0.8)
     ax.tick_params(colors=C_TICK, labelsize=8.5)
     ax.grid(True, linestyle=":", linewidth=0.35, color="#1a3a55", alpha=0.9)
     ax.xaxis.set_minor_locator(ticker.AutoMinorLocator(4))
@@ -499,7 +689,8 @@ def make_fig(w=13, h=4.2):
 
 
 # =============================================================================
-# PIPELINE — Kepler + TESS integrated
+# PIPELINE — Kepler + TESS integrated, returns only plain numpy arrays
+# (plain numpy arrays are always pickle-serialisable by @st.cache_data)
 # =============================================================================
 
 def clear_lk_cache():
@@ -512,6 +703,10 @@ def clear_lk_cache():
 
 @st.cache_data(show_spinner=False)
 def fetch_and_clean(target: str, mission: str, time_segment: int):
+    """
+    Download + clean a Kepler quarter or TESS sector.
+    Returns eleven plain numpy arrays — fully pickle-safe for @st.cache_data.
+    """
     if mission == "Kepler":
         result = lk.search_lightcurve(
             target, mission="Kepler", quarter=time_segment,
@@ -541,16 +736,18 @@ def fetch_and_clean(target: str, mission: str, time_segment: int):
     )
     lc_clean = lc_flat.remove_outliers(sigma=4.0, sigma_lower=1e5)
 
+    # Extract everything to plain numpy — no LightCurve objects leave this fn
     return (
-        np.array(lc_raw.time.value), np.array(lc_raw.flux.value), np.array(lc_raw.flux_err.value),
+        np.array(lc_raw.time.value),   np.array(lc_raw.flux.value),   np.array(lc_raw.flux_err.value),
         np.array(lc_trend.time.value), np.array(lc_trend.flux.value),
-        np.array(lc_flat.time.value), np.array(lc_flat.flux.value), np.array(lc_flat.flux_err.value),
+        np.array(lc_flat.time.value),  np.array(lc_flat.flux.value),  np.array(lc_flat.flux_err.value),
         np.array(lc_clean.time.value), np.array(lc_clean.flux.value), np.array(lc_clean.flux_err.value),
     )
 
 
 @st.cache_data(show_spinner=False)
 def run_bls_cached(time_arr, flux_arr, err_arr):
+    """BLS periodogram — accepts and returns plain numpy arrays only."""
     bls = BoxLeastSquares(
         time_arr * u.day,
         flux_arr * u.dimensionless_unscaled,
@@ -577,19 +774,20 @@ def run_bls_cached(time_arr, flux_arr, err_arr):
 
 
 def phase_fold_arrays(clean_time, clean_flux, clean_ferr, period, t0):
+    """Phase-fold and bin. Uses astropy.time.Time directly (lk.time.Time doesn't exist)."""
     lc_tmp = lk.LightCurve(
         time=AstropyTime(clean_time, format="bkjd", scale="tdb"),
         flux=clean_flux,
         flux_err=clean_ferr,
     )
-    lc_folded = lc_tmp.fold(period=period, epoch_time=t0)
+    lc_folded   = lc_tmp.fold(period=period, epoch_time=t0)
     phase_hours = lc_folded.phase.value * period * 24.0
-    fv = lc_folded.flux.value
+    fv          = lc_folded.flux.value
 
-    edges = np.linspace(phase_hours.min(), phase_hours.max(), N_BINS + 1)
+    edges   = np.linspace(phase_hours.min(), phase_hours.max(), N_BINS + 1)
     centres = 0.5 * (edges[:-1] + edges[1:])
-    meds = np.full(N_BINS, np.nan)
-    errs = np.full(N_BINS, np.nan)
+    meds    = np.full(N_BINS, np.nan)
+    errs    = np.full(N_BINS, np.nan)
     for i in range(N_BINS):
         m = (phase_hours >= edges[i]) & (phase_hours < edges[i + 1])
         if m.sum() > 0:
@@ -599,7 +797,7 @@ def phase_fold_arrays(clean_time, clean_flux, clean_ferr, period, t0):
 
 
 # =============================================================================
-# PLOT BUILDERS
+# PLOT BUILDERS — accept plain numpy arrays
 # =============================================================================
 
 def plot_raw(raw_time, raw_flux, raw_ferr, trend_time, trend_flux):
@@ -608,14 +806,14 @@ def plot_raw(raw_time, raw_flux, raw_ferr, trend_time, trend_flux):
     ax.fill_between(raw_time, raw_flux - raw_ferr, raw_flux + raw_ferr,
                     color=C_RAW, alpha=0.10, zorder=1)
     ax.plot(trend_time, trend_flux, color=C_TREND, lw=1.8, alpha=0.9, zorder=3,
-            label=f"SG trend (window={SG_WINDOW}, poly={SG_POLY})")
+            label=f"SG trend  (window={SG_WINDOW}, poly={SG_POLY})")
     ax.axhline(1.0, color="#334", lw=0.7, ls="--", alpha=0.5)
-    ax.set_xlabel("Time [Days]", color=C_TICK, fontsize=9)
+    ax.set_xlabel("Time  [Days]", color=C_TICK, fontsize=9)
     ax.set_ylabel("Normalised Flux", color=C_RAW, fontsize=9)
     ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.4f"))
     ax.legend(loc="upper right", fontsize=8, framealpha=0.25,
               facecolor=BG_PANEL, edgecolor="#00aacc", labelcolor="white")
-    ax.set_title("Raw Light Curve + Stellar Trend (red = what gets removed)",
+    ax.set_title("Raw Light Curve  +  Stellar Trend (red = what gets removed)",
                  color=C_TICK, fontsize=9, loc="left", pad=6)
     fig.tight_layout(pad=1.5)
     return fig
@@ -624,26 +822,25 @@ def plot_raw(raw_time, raw_flux, raw_ferr, trend_time, trend_flux):
 def plot_flat(flat_time, flat_flux, clean_time, clean_flux):
     fig = plt.figure(figsize=(13, 5.5))
     fig.patch.set_facecolor("#03060f")
-    gs = gridspec.GridSpec(2, 1, figure=fig, hspace=0.06)
+    gs  = gridspec.GridSpec(2, 1, figure=fig, hspace=0.06)
     ax1 = fig.add_subplot(gs[0])
     ax2 = fig.add_subplot(gs[1], sharex=ax1)
-    apply_dark_theme(ax1)
-    apply_dark_theme(ax2)
+    apply_dark_theme(ax1); apply_dark_theme(ax2)
 
     ax1.plot(flat_time, flat_flux, color=C_FLAT, lw=0.5, alpha=0.65, zorder=2,
-             label="Flattened (stellar trend removed)")
+             label="Flattened  (stellar trend removed)")
     ax1.axhline(1.0, color="#334", lw=0.7, ls="--", alpha=0.5)
     ax1.tick_params(labelbottom=False)
     ax1.set_ylabel("Flux", color=C_FLAT, fontsize=9)
     ax1.legend(loc="upper right", fontsize=8, framealpha=0.25,
                facecolor=BG_PANEL, edgecolor="#00aacc", labelcolor="white")
-    ax1.set_title("Flattened (top) → After outlier removal (bottom)",
+    ax1.set_title("Flattened (top)  →  After outlier removal (bottom)",
                   color=C_TICK, fontsize=9, loc="left", pad=6)
 
     ax2.plot(clean_time, clean_flux, color=C_CLEAN, lw=0.5, alpha=0.65, zorder=2,
-             label="Planet-search ready (outliers removed)")
+             label="Planet-search ready  (outliers removed)")
     ax2.axhline(1.0, color="#334", lw=0.7, ls="--", alpha=0.5)
-    ax2.set_xlabel("Time [Days]", color=C_TICK, fontsize=9)
+    ax2.set_xlabel("Time  [Days]", color=C_TICK, fontsize=9)
     ax2.set_ylabel("Flux", color=C_CLEAN, fontsize=9)
     ax2.legend(loc="upper right", fontsize=8, framealpha=0.25,
                facecolor=BG_PANEL, edgecolor="#00aacc", labelcolor="white")
@@ -658,9 +855,9 @@ def plot_flat(flat_time, flat_flux, clean_time, clean_flux):
 
 def plot_bls(periods, power, clean_time, clean_flux, clean_ferr,
              best_period, best_t0, best_duration, best_depth):
-    dur_h = best_duration * 24.0
+    dur_h      = best_duration * 24.0
     half_dur_h = dur_h / 2.0
-    margin = max(best_depth * 6, 0.0015)
+    margin     = max(best_depth * 6, 0.0015)
 
     fold_flux, phase_hours, bin_c, bin_m, bin_e = phase_fold_arrays(
         clean_time, clean_flux, clean_ferr, best_period, best_t0,
@@ -670,9 +867,9 @@ def plot_bls(periods, power, clean_time, clean_flux, clean_ferr,
     fig.patch.set_facecolor("#03060f")
     outer = gridspec.GridSpec(2, 1, figure=fig, hspace=0.42,
                               top=0.90, bottom=0.07, left=0.07, right=0.97)
-    top_ax = fig.add_subplot(outer[0])
-    bot = gridspec.GridSpecFromSubplotSpec(
-        1, 2, subplot_spec=outer[1], wspace=0.32, width_ratios=[1, 1.1])
+    top_ax  = fig.add_subplot(outer[0])
+    bot     = gridspec.GridSpecFromSubplotSpec(
+                  1, 2, subplot_spec=outer[1], wspace=0.32, width_ratios=[1, 1.1])
     fold_ax = fig.add_subplot(bot[0])
     zoom_ax = fig.add_subplot(bot[1])
     for ax in (top_ax, fold_ax, zoom_ax):
@@ -698,7 +895,7 @@ def plot_bls(periods, power, clean_time, clean_flux, clean_ferr,
     if harmonic > BLS_MIN_PERIOD:
         top_ax.axvline(harmonic, color="#555", lw=0.8, ls=":", alpha=0.5)
         top_ax.text(harmonic, peak_pwr * 0.04, " P/2", color="#444", fontsize=7, va="bottom")
-    top_ax.set_xlabel("Trial Period [days]", color=C_TICK, fontsize=9.5)
+    top_ax.set_xlabel("Trial Period  [days]", color=C_TICK, fontsize=9.5)
     top_ax.set_ylabel("BLS Power", color=C_PERI, fontsize=9.5)
     top_ax.set_xlim(BLS_MIN_PERIOD, BLS_MAX_PERIOD)
     top_ax.set_ylim(0, peak_pwr * 1.18)
@@ -717,17 +914,17 @@ def plot_bls(periods, power, clean_time, clean_flux, clean_ferr,
     fold_ax.axhline(1.0, color="#334", lw=0.7, ls="--", alpha=0.5)
     fold_ax.set_ylim(1.0 - margin, 1.0 + margin * 0.5)
     fold_ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.4f"))
-    fold_ax.set_xlabel("Phase [hours]", color=C_TICK, fontsize=9.5)
+    fold_ax.set_xlabel("Phase  [hours]", color=C_TICK, fontsize=9.5)
     fold_ax.set_ylabel("Normalised Flux", color=C_FOLD, fontsize=9.5)
     fold_ax.legend(loc="lower center", fontsize=7.5, framealpha=0.25,
                    facecolor=BG_PANEL, edgecolor="#00aacc", labelcolor="white")
     fold_ax.set_title("② Full Phase-Folded Curve", color=C_TICK, fontsize=9, pad=5, loc="left")
 
-    zoom_h = dur_h * 4
-    zs = np.abs(phase_hours) <= zoom_h
-    zb = valid & (np.abs(bin_c) <= zoom_h)
+    zoom_h   = dur_h * 4
+    zs       = np.abs(phase_hours) <= zoom_h
+    zb       = valid & (np.abs(bin_c) <= zoom_h)
     bottom_y = 1.0 - best_depth
-    arr_x = dur_h * 1.9
+    arr_x    = dur_h * 1.9
 
     zoom_ax.scatter(phase_hours[zs], fold_flux[zs], color=C_FOLD, s=5, alpha=0.45, zorder=2)
     zoom_ax.errorbar(bin_c[zb], bin_m[zb], yerr=bin_e[zb],
@@ -746,9 +943,9 @@ def plot_bls(periods, power, clean_time, clean_flux, clean_ferr,
     zoom_ax.set_xlim(-zoom_h, zoom_h)
     zoom_ax.set_ylim(1.0 - margin, 1.0 + margin * 0.4)
     zoom_ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.5f"))
-    zoom_ax.set_xlabel("Phase [hours]", color=C_TICK, fontsize=9.5)
+    zoom_ax.set_xlabel("Phase  [hours]", color=C_TICK, fontsize=9.5)
     zoom_ax.set_ylabel("Normalised Flux", color=C_FOLD, fontsize=9.5)
-    zoom_ax.set_title("③ Zoomed Transit — U-shaped dip",
+    zoom_ax.set_title("③ Zoomed Transit  — U-shaped dip",
                       color=C_TICK, fontsize=9, pad=5, loc="left")
     fig.suptitle("BLS Planet Detection", color="white", fontsize=13,
                  fontweight="bold", y=0.96)
@@ -769,7 +966,7 @@ with st.sidebar:
       <div style='font-size:0.68rem;color:#00ccaa;text-transform:uppercase;
                   letter-spacing:0.13em;margin-top:5px;
                   text-shadow:0 0 5px rgba(0,204,170,0.3);'>
-        Multi-Mission BLS + Composition Engine
+        Multi-Mission BLS Engine
       </div>
     </div>
     """, unsafe_allow_html=True)
@@ -806,8 +1003,7 @@ with st.sidebar:
       ③ Savitzky-Golay flatten<br>
       ④ Outlier sigma-clip (4σ)<br>
       ⑤ BLS periodogram<br>
-      ⑥ Phase-fold &amp; bin<br>
-      ⑦ Composition classification
+      ⑥ Phase-fold &amp; bin
     </div>
     """, unsafe_allow_html=True)
 
@@ -822,7 +1018,14 @@ with st.sidebar:
       <span style='color:#88aacc'>Modules:</span> ATS-1 | Exoplanet Hunter
     </div>
     """, unsafe_allow_html=True)
-    st.info("🛸 Detecting & classifying exoplanets using NASA MAST data.")
+    st.info("🛸 Searching the cosmos for the next Earth-like world.")
+
+
+# =============================================================================
+# SESSION STATE
+# =============================================================================
+if "search_btn"  not in st.session_state: st.session_state.search_btn  = False
+if "star_name"   not in st.session_state: st.session_state.star_name   = "Kepler-10"
 
 
 # =============================================================================
@@ -831,7 +1034,7 @@ with st.sidebar:
 st.markdown('<div class="hero-title animate-in">EXOPLANET HUNTER</div>',
             unsafe_allow_html=True)
 st.markdown('<div class="hero-sub animate-in delay-1">'
-            '[ MULTI-MISSION · BLS DETECTION · COMPOSITION CLASSIFICATION ]</div>',
+            '[ MULTI-MISSION · BOX LEAST SQUARES DETECTION ENGINE ]</div>',
             unsafe_allow_html=True)
 
 if not st.session_state.search_btn:
@@ -857,6 +1060,7 @@ if not st.session_state.search_btn:
         label_visibility="collapsed",
     )
 
+    # Dynamic suggestions per mission
     if selected_mission == "Kepler":
         chips = ["Kepler-10", "Kepler-22", "Kepler-90", "Kepler-186"]
     else:
@@ -888,7 +1092,7 @@ if not st.session_state.search_btn:
 # =============================================================================
 time_label = "QUARTER" if selected_mission == "Kepler" else "SECTOR"
 st.markdown(f"""
-<div class="status-text animate-in" style='margin-bottom:1.2rem;font-family:Space Mono;color:#00ffcc;'>
+<div class="status-text animate-in" style='margin-bottom:1.2rem;'>
   > ANALYSING &nbsp;<span style='color:#00ffff'>{st.session_state.star_name.upper()}</span>
   &nbsp;·&nbsp; {selected_mission.upper()} {time_label} {time_segment}
 </div>""", unsafe_allow_html=True)
@@ -908,7 +1112,7 @@ with st.spinner("📡 Contacting NASA MAST archive …"):
             f"- Make sure you're using the right mission "
             f"(TRAPPIST-1 → TESS, Kepler-10 → Kepler)\n"
             f"- Try a different {time_label.lower()}\n"
-            "- **SSL error?** Enable a VPN and retry"
+            "- **SSL error?** Your ISP is blocking NASA — enable a VPN and retry"
         )
         st.session_state.search_btn = False
         st.stop()
@@ -923,48 +1127,13 @@ with st.spinner(f"🔍 Running BLS — scanning {BLS_MIN_PERIOD}–{BLS_MAX_PERI
         st.stop()
 
 # ── Derived stats ─────────────────────────────────────────────────────────────
-t_span = clean_t.max() - clean_t.min()
+t_span     = clean_t.max() - clean_t.min()
 n_transits = int(np.floor(t_span / best_period))
-noise_ppm = float(np.std(clean_f)) * 1e6
-snr = float(power.max()) / float(np.median(power)) if np.median(power) > 0 else 0.0
+noise_ppm  = float(np.std(clean_f)) * 1e6
+snr        = float(power.max()) / float(np.median(power)) if np.median(power) > 0 else 0.0
 
-# ── Estimate planet mass & radius for composition classification ──────────────
-# Using empirical relations from Chen & Kipping (2017)
-def estimate_mass_from_radius(radius_earth):
-    """Mass-radius relation for exoplanets (Chen & Kipping 2017)"""
-    if radius_earth <= 2.0:
-        return 0.97 * (radius_earth ** 3.47)  # Rocky planets
-    else:
-        return 2.69 * (radius_earth ** 1.33)  # Gas giants
-
-def estimate_radius_from_mass(mass_earth):
-    """Inverse mass-radius relation"""
-    if mass_earth <= 2.0:
-        return (mass_earth / 0.97) ** (1/3.47)
-    else:
-        return (mass_earth / 2.69) ** (1/1.33)
-
-# Estimate radius from transit depth
-# transit_depth ≈ (R_planet / R_star)²
-# Assuming solar-type star (R_star ≈ 1 R☉ ≈ 109 R🜨)
-R_star_earth = 109  # Solar radius in Earth radii
-planet_radius_estimate = np.sqrt(best_depth) * R_star_earth
-
-# Conservative estimate (depth is in flux units, normalized to star flux)
-planet_radius_estimate = max(min(planet_radius_estimate, 20), 0.5)
-
-# Estimate mass from radius using empirical relation
-planet_mass_estimate = estimate_mass_from_radius(planet_radius_estimate)
-
-# Get composition classification
-composition_result = get_planet_composition(
-    planet_mass_estimate,
-    planet_radius_estimate,
-    temperature=1000  # Approximate equilibrium temp for detected candidates
-)
-
-# ── Stat cards (Detection only) ───────────────────────────────────────────────
-st.markdown('<div class="section-header animate-in delay-1">★  DETECTION PARAMETERS</div>',
+# ── Stat cards ────────────────────────────────────────────────────────────────
+st.markdown('<div class="section-header animate-in delay-1">★  DETECTED PLANET PARAMETERS</div>',
             unsafe_allow_html=True)
 c1, c2, c3, c4, c5 = st.columns(5)
 for col, color, label, value, unit in [
@@ -981,71 +1150,6 @@ for col, color, label, value, unit in [
           <div class="stat-value">{value}<span class="stat-unit">{unit}</span></div>
         </div>""", unsafe_allow_html=True)
 
-# ── Composition Analysis Section ─────────────────────────────────────────────
-st.markdown('<div class="section-header animate-in delay-1">★  PLANETARY COMPOSITION ANALYSIS</div>',
-            unsafe_allow_html=True)
-
-# Display composition results in styled columns
-comp_col1, comp_col2, comp_col3 = st.columns(3)
-
-with comp_col1:
-    lava_emoji = "🌋 " if composition_result['is_lava_world'] else ""
-    st.markdown(f"""
-    <div class="stat-card cyan glass-in delay-2">
-      <div class="stat-label">COMPOSITION TYPE</div>
-      <div style='font-family:Space Mono,monospace;font-size:1.1rem;font-weight:700;color:#00ffff;'>
-        {lava_emoji}{composition_result['composition']}
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with comp_col2:
-    confidence_color = "#00ff88" if composition_result['confidence'] > 0.8 else "#ffaa44"
-    st.markdown(f"""
-    <div class="stat-card green glass-in delay-2">
-      <div class="stat-label">CLASSIFICATION CONFIDENCE</div>
-      <div class="stat-value">{composition_result['confidence']*100:.0f}<span class="stat-unit">%</span></div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with comp_col3:
-    st.markdown(f"""
-    <div class="stat-card gold glass-in delay-2">
-      <div class="stat-label">EST. BULK DENSITY</div>
-      <div class="stat-value">{composition_result['density_g_cm3']:.2f}<span class="stat-unit">g/cm³</span></div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Composition details
-st.markdown(f"""
-<div class='desc-text'>
-  <span style='color:#00ffff'>▶ CLASSIFICATION:</span> {composition_result['subtype']}<br>
-  <span style='color:#00ffff'>▶ ESTIMATED MASS:</span> {composition_result['mass_earth']:.2f} M🜨 &nbsp;|&nbsp;
-  <span style='color:#00ffff'>▶ ESTIMATED RADIUS:</span> {composition_result['radius_earth']:.2f} R🜨<br>
-  <span style='color:#00ffff'>▶ INTERPRETATION:</span> A {composition_result['composition'].lower()} with density 
-  {composition_result['density_g_cm3']:.2f} g/cm³. 
-  {"⚠️ LAVA WORLD DETECTED — Extreme surface temperatures suggest magma oceans." if composition_result['is_lava_world'] else ""}
-</div>
-""", unsafe_allow_html=True)
-
-# Show mass-radius estimation note
-with st.expander("📐 About Mass-Radius Estimation"):
-    st.markdown("""
-    **Mass-Radius Estimation Method:**
-    
-    Since direct mass measurements are not available from transit photometry alone, 
-    we estimate the planet's radius from the transit depth and use the empirical 
-    mass-radius relation from **Chen & Kipping (2017)** to estimate its mass.
-    
-    - **Rocky planets** (R < 2 R🜨): M ∝ R³·⁴⁷
-    - **Gas giants** (R > 2 R🜨): M ∝ R¹·³³
-    
-    The composition classification uses these estimates and NASA Exoplanet Archive 
-    density thresholds to categorize the planet.
-    
-    *For more accurate classification, follow up with radial velocity measurements!*
-    """)
-
 # ── Graph 1: Raw ──────────────────────────────────────────────────────────────
 st.markdown('<div class="section-header animate-in delay-2">01 · RAW LIGHT CURVE</div>',
             unsafe_allow_html=True)
@@ -1054,8 +1158,7 @@ The <span style='color:#ff6b6b'>red curve</span> is the Savitzky-Golay stellar t
 slow variability that completely hides the tiny planet transits.</div>""",
             unsafe_allow_html=True)
 fig_raw = plot_raw(raw_t, raw_f, raw_fe, trend_t, trend_f)
-st.pyplot(fig_raw, use_container_width=True)
-plt.close(fig_raw)
+st.pyplot(fig_raw, use_container_width=True); plt.close(fig_raw)
 
 # ── Graph 2: Flat ─────────────────────────────────────────────────────────────
 st.markdown('<div class="section-header animate-in delay-2">02 · CLEANED &amp; FLATTENED LIGHT CURVE</div>',
@@ -1065,8 +1168,7 @@ Bottom: outlier spikes clipped. Noise floor ≈
 <b style='color:#a8ff78'>{noise_ppm:.0f} ppm</b> — BLS search input.</div>""",
             unsafe_allow_html=True)
 fig_flat = plot_flat(flat_t, flat_f, clean_t, clean_f)
-st.pyplot(fig_flat, use_container_width=True)
-plt.close(fig_flat)
+st.pyplot(fig_flat, use_container_width=True); plt.close(fig_flat)
 
 # ── Graph 3: BLS ──────────────────────────────────────────────────────────────
 st.markdown('<div class="section-header animate-in delay-3">03 · BLS PERIODOGRAM &amp; PHASE-FOLDED TRANSIT</div>',
@@ -1079,8 +1181,7 @@ All ~{n_transits} transits stacked — the U-shaped dip is the exoplanet's shado
 with st.spinner("Rendering BLS detection plot …"):
     fig_bls = plot_bls(periods, power, clean_t, clean_f, clean_fe,
                        best_period, best_t0, best_duration, best_depth)
-st.pyplot(fig_bls, use_container_width=True)
-plt.close(fig_bls)
+st.pyplot(fig_bls, use_container_width=True); plt.close(fig_bls)
 
 # ── Back button ───────────────────────────────────────────────────────────────
 st.markdown("<br>", unsafe_allow_html=True)
@@ -1093,10 +1194,9 @@ with back_col:
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.markdown("---")
 st.markdown(f"""
-<div class='status-text' style='text-align:center;padding:1rem 0 2rem;font-family:Space Mono;color:#00ffcc;'>
+<div class='status-text' style='text-align:center;padding:1rem 0 2rem;'>
   > {st.session_state.star_name.upper()} · {selected_mission} {time_label[0]}{time_segment}
   · {len(clean_t):,} CADENCES · {t_span:.1f} D · NOISE {noise_ppm:.0f} PPM
   · P = {best_period:.5f} D · DEPTH {best_depth*1e6:.0f} PPM
-  · COMPOSITION: {composition_result['composition'].upper()}
   · NASA MAST ARCHIVE
 </div>""", unsafe_allow_html=True)
