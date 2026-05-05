@@ -1,7 +1,7 @@
 """
 ==============================================================================
   EXOPLANET DETECTION SYSTEM — Streamlit Web Application
-  app.py  [RESTORED: HD nebula background + glassmorphism containers]
+  app.py  [RESTORED: Original Layout + Glassy Monochrome Background]
 ==============================================================================
 HOW TO RUN
     pip install streamlit lightkurve astropy matplotlib numpy
@@ -10,7 +10,6 @@ HOW TO RUN
 
 import streamlit as st
 
-# MUST BE THE FIRST STREAMLIT COMMAND
 st.set_page_config(
     page_title="Exoplanet Hunter",
     page_icon="🔭",
@@ -60,42 +59,29 @@ C_PERI   = "#00d4ff"
 C_ANNO   = "#ffe66d"
 
 # =============================================================================
-# CSS  —  HD nebula background + full glassmorphism
+# CSS  —  Glassy monochrome background + full glassmorphism
 # =============================================================================
 st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Exo+2:wght@300;400;600;800&display=swap');
 
-  /* HD NEBULA BACKGROUND */
+  /* ══════════════════════════════════════════════════════════════════════
+     GLASSY MONOCHROME BACKGROUND
+     Deep purple on left, teal on right, blending into dark navy.
+  ══════════════════════════════════════════════════════════════════════ */
   .stApp {
-      background-color: #02040e;
-      background-image:
-          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E"),
-          radial-gradient(ellipse 100% 100% at 50% 50%, transparent 25%, rgba(1,3,12,0.80) 100%),
-          linear-gradient(180deg, rgba(4,8,28,0.52) 0%, rgba(8,4,24,0.38) 50%, rgba(2,6,20,0.58) 100%),
-          linear-gradient(rgba(1,3,12,0.28), rgba(1,3,12,0.28)),
-          url("https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Crab_Nebula.jpg/1280px-Crab_Nebula.jpg");
-      background-size: 400px 400px, 100% 100%, 100% 100%, 100% 100%, cover;
-      background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat;
-      background-position: top left, center center, center center, center center, center center;
-      background-attachment: scroll, fixed, fixed, fixed, fixed;
+      background-color: #040814;
+      background-image: 
+          radial-gradient(circle at 0% 50%, rgba(90, 30, 150, 0.25) 0%, transparent 50%),
+          radial-gradient(circle at 100% 30%, rgba(0, 180, 220, 0.15) 0%, transparent 60%),
+          radial-gradient(circle at 50% 100%, rgba(20, 40, 80, 0.4) 0%, transparent 70%);
+      background-attachment: fixed;
       min-height: 100vh;
   }
 
-  .stApp::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      z-index: -1;
-      background:
-          radial-gradient(ellipse 55% 40% at 85% 80%, rgba(180,80,10,0.28) 0%, transparent 65%),
-          radial-gradient(ellipse 70% 60% at 20% 55%, rgba(90,20,140,0.40) 0%, rgba(40,10,80,0.18) 50%, transparent 80%),
-          radial-gradient(ellipse 50% 45% at 78% 18%, rgba(0,160,200,0.32) 0%, rgba(0,80,140,0.14) 55%, transparent 80%),
-          radial-gradient(ellipse 90% 70% at 50% 45%, rgba(10,25,70,0.65) 0%, rgba(3,8,28,0.92) 65%, #02040e 100%);
-      pointer-events: none;
-  }
-
-  /* MAIN GLASSMORPHISM CONTAINER */
+  /* ══════════════════════════════════════════════════════════════════════
+     GLASSMORPHISM — main content panel
+  ══════════════════════════════════════════════════════════════════════ */
   .main .block-container {
       background: rgba(3, 8, 22, 0.52) !important;
       backdrop-filter: blur(20px) saturate(165%) !important;
@@ -104,10 +90,15 @@ st.markdown("""
       padding: 2rem 2.5rem !important;
       margin-top: 0.5rem !important;
       border: 1px solid rgba(100, 160, 255, 0.13) !important;
-      box-shadow: 0 8px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.065), inset 0 -1px 0 rgba(0,0,0,0.30) !important;
+      box-shadow:
+          0 8px 40px rgba(0,0,0,0.55),
+          inset 0 1px 0 rgba(255,255,255,0.065),
+          inset 0 -1px 0 rgba(0,0,0,0.30) !important;
   }
 
-  /* SIDEBAR REPAIR FIXES (Ensures it never vanishes) */
+  /* ══════════════════════════════════════════════════════════════════════
+     GLASSMORPHISM — sidebar (FIXED VISIBILITY)
+  ══════════════════════════════════════════════════════════════════════ */
   section[data-testid="stSidebar"] {
       background: rgba(4, 9, 24, 0.70) !important;
       backdrop-filter: blur(26px) saturate(180%) !important;
@@ -126,7 +117,9 @@ st.markdown("""
   [data-testid="stSidebarCollapseButton"],
   .css-1lcbmhc, .css-1d391kg { display: none !important; }
 
-  /* STREAMLIT ALERT/SPINNER OVERRIDES */
+  /* ══════════════════════════════════════════════════════════════════════
+     GLASSMORPHISM — Streamlit native alert/info boxes
+  ══════════════════════════════════════════════════════════════════════ */
   div[data-testid="stExpander"],
   div[data-testid="stInfo"],
   div[data-testid="stSuccess"],
@@ -139,6 +132,7 @@ st.markdown("""
       border-radius: 10px !important;
   }
 
+  /* Spinner */
   div[data-testid="stSpinner"] > div {
       background: rgba(4, 10, 26, 0.68) !important;
       backdrop-filter: blur(12px) !important;
@@ -146,16 +140,22 @@ st.markdown("""
       border: 1px solid rgba(0,212,255,0.16) !important;
   }
 
+  /* ══════════════════════════════════════════════════════════════════════
+     GLASSMORPHISM — matplotlib figure wrappers
+  ══════════════════════════════════════════════════════════════════════ */
   div[data-testid="stPyplotRootElement"] {
       background: rgba(3, 8, 20, 0.48) !important;
       backdrop-filter: blur(10px) !important;
+      -webkit-backdrop-filter: blur(10px) !important;
       border-radius: 14px !important;
       border: 1px solid rgba(40, 80, 160, 0.22) !important;
       padding: 6px !important;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.50), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+      box-shadow:
+          0 4px 24px rgba(0,0,0,0.50),
+          inset 0 1px 0 rgba(255,255,255,0.04) !important;
   }
 
-  /* TYPOGRAPHY */
+  /* ── TYPOGRAPHY ── */
   html, body, [class*="css"] {
       font-family: 'Exo 2', sans-serif;
       color: #d0e4ff;
@@ -191,28 +191,44 @@ st.markdown("""
       text-shadow: 0 1px 8px rgba(0,0,0,0.75);
   }
 
-  /* STAT CARDS */
+  /* ══════════════════════════════════════════════════════════════════════
+     GLASSMORPHISM STAT CARDS
+  ══════════════════════════════════════════════════════════════════════ */
   .stat-card {
       background: rgba(6, 14, 34, 0.55);
       backdrop-filter: blur(18px) saturate(155%);
+      -webkit-backdrop-filter: blur(18px) saturate(155%);
       border: 1px solid rgba(60, 100, 180, 0.26);
       border-radius: 13px;
       padding: 14px 20px;
       flex: 1; min-width: 140px;
       position: relative; overflow: hidden;
-      box-shadow: 0 4px 28px rgba(0,0,0,0.52), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.22);
+      box-shadow:
+          0 4px 28px rgba(0,0,0,0.52),
+          inset 0 1px 0 rgba(255,255,255,0.08),
+          inset 0 -1px 0 rgba(0,0,0,0.22);
       transition: box-shadow 0.3s ease, border-color 0.3s ease, transform 0.2s ease;
   }
   .stat-card:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 36px rgba(0,0,0,0.62), 0 0 22px rgba(0,180,255,0.12), inset 0 1px 0 rgba(255,255,255,0.10);
+      box-shadow:
+          0 8px 36px rgba(0,0,0,0.62),
+          0 0 22px rgba(0,180,255,0.12),
+          inset 0 1px 0 rgba(255,255,255,0.10);
       border-color: rgba(80,150,255,0.38);
   }
-  .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+  /* Top accent bar */
+  .stat-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  }
+  /* Frosted shimmer sweep */
   .stat-card::after {
-      content: ''; position: absolute; top: 0; left: -80%; width: 55%; height: 100%;
+      content: '';
+      position: absolute; top: 0; left: -80%;
+      width: 55%; height: 100%;
       background: linear-gradient(90deg, transparent, rgba(255,255,255,0.045), transparent);
-      transform: skewX(-15deg); pointer-events: none;
+      transform: skewX(-15deg);
+      pointer-events: none;
   }
   .stat-card.blue::before  { background: linear-gradient(90deg,#00d4ff,#0080ff); }
   .stat-card.green::before { background: linear-gradient(90deg,#a8ff78,#00d464); }
@@ -221,15 +237,17 @@ st.markdown("""
   .stat-card.cyan::before  { background: linear-gradient(90deg,#4a7cff,#00d4ff); }
   .stat-label {
       font-family: 'Space Mono', monospace; font-size: 0.62rem;
-      letter-spacing: 0.18em; text-transform: uppercase; color: #4a6890; margin-bottom: 5px;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      color: #4a6890; margin-bottom: 5px;
   }
   .stat-value {
-      font-family: 'Space Mono', monospace; font-size: 1.22rem; font-weight: 700; color: #eaf4ff;
+      font-family: 'Space Mono', monospace;
+      font-size: 1.22rem; font-weight: 700; color: #eaf4ff;
       text-shadow: 0 0 14px rgba(0,180,255,0.22);
   }
   .stat-unit { font-size: 0.68rem; color: #4a6890; margin-left: 3px; }
 
-  /* WIDGET OVERRIDES */
+  /* ── WIDGET OVERRIDES ── */
   .stTextInput > div > div > input {
       background: rgba(6, 14, 34, 0.72) !important;
       backdrop-filter: blur(10px) !important;
@@ -258,24 +276,24 @@ st.markdown("""
       border-color: rgba(0,212,255,0.72) !important;
   }
 
-  /* SLIDER ACCENT COLOR OVERRIDE (To match your red slider!) */
-  div[data-baseweb="slider"] > div > div {
-      background-color: #ff3366 !important;
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
   }
-  div[data-baseweb="slider"] > div > div[data-testid="stTickBar"] > div {
-      background-color: #ff3366 !important;
+  @keyframes glassIn {
+      from { opacity: 0; transform: scale(0.97) translateY(12px); }
+      to   { opacity: 1; transform: scale(1.00) translateY(0);    }
   }
-
-  /* ANIMATIONS */
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
-  @keyframes glassIn { from { opacity: 0; transform: scale(0.97) translateY(12px); } to { opacity: 1; transform: scale(1.00) translateY(0); } }
   .animate-in { animation: fadeUp  0.55s cubic-bezier(.22,.68,0,1.2) both; }
   .glass-in   { animation: glassIn 0.60s cubic-bezier(.22,.68,0,1.1) both; }
-  .delay-1 { animation-delay: 0.08s; } .delay-2 { animation-delay: 0.20s; } .delay-3 { animation-delay: 0.34s; }
+  .delay-1 { animation-delay: 0.08s; }
+  .delay-2 { animation-delay: 0.20s; }
+  .delay-3 { animation-delay: 0.34s; }
 
   #MainMenu, footer, header { visibility: hidden; }
 
-  /* SCROLLBAR */
+  /* Styled scrollbar */
   ::-webkit-scrollbar { width: 5px; }
   ::-webkit-scrollbar-track { background: rgba(2,4,16,0.55); }
   ::-webkit-scrollbar-thumb { background: rgba(0,120,200,0.38); border-radius: 4px; }
@@ -300,6 +318,7 @@ window.addEventListener('load', function () {
 </script>
 """, unsafe_allow_html=True)
 
+
 # =============================================================================
 # HELPERS — MATPLOTLIB THEME
 # =============================================================================
@@ -318,6 +337,7 @@ def make_fig(w=13, h=4.2):
     apply_dark_theme(ax)
     return fig, ax
 
+
 # =============================================================================
 # PIPELINE
 # =============================================================================
@@ -328,6 +348,7 @@ def clear_lk_cache():
         if path.exists():
             shutil.rmtree(path)
             path.mkdir(parents=True, exist_ok=True)
+
 
 @st.cache_data(show_spinner=False)
 def fetch_and_clean(target: str, quarter: int):
@@ -362,6 +383,7 @@ def fetch_and_clean(target: str, quarter: int):
         np.array(lc_clean.time.value), np.array(lc_clean.flux.value), np.array(lc_clean.flux_err.value),
     )
 
+
 @st.cache_data(show_spinner=False)
 def run_bls_cached(time_arr, flux_arr, err_arr):
     bls = BoxLeastSquares(
@@ -388,6 +410,7 @@ def run_bls_cached(time_arr, flux_arr, err_arr):
         float(pg.depth[best_idx]),
     )
 
+
 def phase_fold_arrays(clean_time, clean_flux, clean_ferr, period, t0):
     lc_tmp = lk.LightCurve(
         time=AstropyTime(clean_time, format="bkjd", scale="tdb"),
@@ -410,6 +433,7 @@ def phase_fold_arrays(clean_time, clean_flux, clean_ferr, period, t0):
             errs[i] = 1.48 * np.median(np.abs(fv[m] - meds[i])) / np.sqrt(m.sum())
     return fv, phase_hours, centres, meds, errs
 
+
 # =============================================================================
 # PLOT BUILDERS
 # =============================================================================
@@ -431,6 +455,7 @@ def plot_raw(raw_time, raw_flux, raw_ferr, trend_time, trend_flux):
                  color=C_TICK, fontsize=9, loc="left", pad=6)
     fig.tight_layout(pad=1.5)
     return fig
+
 
 def plot_flat(flat_time, flat_flux, clean_time, clean_flux):
     fig = plt.figure(figsize=(13, 5.5))
@@ -464,6 +489,7 @@ def plot_flat(flat_time, flat_flux, clean_time, clean_flux):
         ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.4f"))
     fig.tight_layout(pad=1.5)
     return fig
+
 
 def plot_bls(periods, power, clean_time, clean_flux, clean_ferr,
              best_period, best_t0, best_duration, best_depth):
@@ -563,6 +589,7 @@ def plot_bls(periods, power, clean_time, clean_flux, clean_ferr,
     fig.suptitle("BLS Planet Detection", color="white", fontsize=13, fontweight="bold", y=0.96)
     return fig
 
+
 # =============================================================================
 # SIDEBAR
 # =============================================================================
@@ -617,6 +644,26 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
+    st.markdown("---")
+    st.markdown("### 👨‍🚀 About the Developer")
+    with st.container():
+        st.markdown("""
+        **Name:** Kishore (Kai)
+
+        **Academic Status:**
+        Recently completed 12th Grade Examinations.
+
+        **Goal:**
+        🎯 **MIT Class of 2031**
+        *Astrophysics & Aeronautical Engineering*.
+
+        **Technical Portfolio:**
+        * **ATS-1:** Specialized Asteroid Tracker System.
+        * **Exoplanet Hunter:** NASA MAST-based detection engine.
+        """)
+    st.info("Searching the cosmos for the next Earth-like world.")
+
+
 # =============================================================================
 # SESSION STATE
 # =============================================================================
@@ -631,7 +678,7 @@ if 'star_name' not in st.session_state:
 # =============================================================================
 
 st.markdown('<div class="hero-title animate-in">EXOPLANET HUNTER</div>', unsafe_allow_html=True)
-st.markdown('<div class="hero-sub animate-in delay-1">Multi-Mission Box Least Squares Detection Engine</div>',
+st.markdown('<div class="hero-sub animate-in delay-1">Kepler Space Telescope · Box Least Squares Detection Engine</div>',
             unsafe_allow_html=True)
 
 if not st.session_state.search_btn:
@@ -662,9 +709,8 @@ if not st.session_state.search_btn:
     st.markdown("""
         <div style="display: flex; gap: 15px; justify-content: center; margin-top: -10px; margin-bottom: 20px;">
             <span style="font-size: 0.8rem; color: #667;">Suggestions:</span>
-            <code style="color: #00d4ff; background: rgba(0,212,255,0.10); padding: 2px 8px; border-radius: 5px; border: 1px solid rgba(0,212,255,0.22);">Kepler-10</code>
             <code style="color: #00d4ff; background: rgba(0,212,255,0.10); padding: 2px 8px; border-radius: 5px; border: 1px solid rgba(0,212,255,0.22);">Kepler-90</code>
-            <code style="color: #00d4ff; background: rgba(0,212,255,0.10); padding: 2px 8px; border-radius: 5px; border: 1px solid rgba(0,212,255,0.22);">Kepler-22b</code>
+            <code style="color: #00d4ff; background: rgba(0,212,255,0.10); padding: 2px 8px; border-radius: 5px; border: 1px solid rgba(0,212,255,0.22);">TRAPPIST-1</code>
         </div>
     """, unsafe_allow_html=True)
 
