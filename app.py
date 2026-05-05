@@ -4,7 +4,7 @@
   app.py  [UPGRADED: Neon Space Mono + Ken Burns Zoom + Glassmorphism]
 ==============================================================================
 HOW TO RUN
-    pip install streamlit lightkurve astropy matplotlib numpy streamlit-searchbox
+    pip install streamlit lightkurve astropy matplotlib numpy
     streamlit run app.py
 ==============================================================================
 
@@ -16,7 +16,6 @@ NEW FEATURES:
 """
 
 import streamlit as st
-from streamlit_searchbox import st_searchbox
 
 # set_page_config MUST be the absolute first Streamlit call in the file
 st.set_page_config(
@@ -2289,18 +2288,31 @@ if not st.session_state.search_btn:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    _selected_name = st_searchbox(
-        search_planets,
-        key="planet_searchbox",
-        placeholder="🔭  Search planet — e.g. Kepler-442 b, TRAPPIST-1 e …",
-        default=st.session_state.star_name,
-        clear_on_submit=False,
-        style_overrides={
-            "menu_margin_top": "4px",
-        },
+    # ── Native autocomplete: text input drives a live-filtered selectbox ─────
+    _typed = st.text_input(
+        "planet_search_input",
+        value=st.session_state.star_name,
+        placeholder="🔭  Type planet name — e.g. Kepler-442 b, TRAPPIST-1 e …",
+        label_visibility="collapsed",
     )
 
-    # When user picks a suggestion (or types a name and blurs), update state & sync
+    _suggestions = search_planets(_typed) if _typed.strip() else []
+
+    _selected_name = None
+    if _suggestions:
+        # Prepend the raw typed value so the user can also just hit Scan directly
+        _opts = [_typed.strip()] + [s for s in _suggestions if s.strip().lower() != _typed.strip().lower()]
+        _pick = st.selectbox(
+            "autocomplete_dropdown",
+            options=_opts,
+            label_visibility="collapsed",
+        )
+        _selected_name = _pick
+    else:
+        # No matches yet — treat whatever is typed as the selection
+        _selected_name = _typed
+
+    # Commit whenever the resolved name differs from what's stored
     if _selected_name and _selected_name.strip() != st.session_state.star_name:
         _clean = _selected_name.strip()
         st.session_state.star_name = _clean
