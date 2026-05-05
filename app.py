@@ -1,39 +1,18 @@
 """
 ==============================================================================
   EXOPLANET DETECTION SYSTEM — Streamlit Web Application
-  app.py  [UPGRADED: HD CSS Nebula + Full Glassmorphism HUD]
+  app.py  [UPGRADED: HD CSS Nebula + Full Glassmorphism HUD + Ken Burns Zoom]
 ==============================================================================
 HOW TO RUN
     pip install streamlit lightkurve astropy matplotlib numpy
     streamlit run app.py
 ==============================================================================
 
-BACKGROUND STRATEGY
--------------------
-We use a pure-CSS multi-layer nebula instead of fetching an external image.
-This guarantees:
-  • Zero network dependency  → loads instantly on any connection / cloud host
-  • No CORS or CDN failures  → works on Streamlit Cloud, local, everywhere
-  • Instant first-paint      → no blank screen while image loads
-  • Pixel-perfect parallax   → background-attachment:fixed on all layers
-
-Layer stack (painter's order, bottom → top):
-  1. Deep navy void          linear-gradient base
-  2. Purple nebula cloud     radial ellipse, centre-left
-  3. Teal star-cluster glow  radial ellipse, top-right
-  4. Amber emission wisps    radial ellipse, bottom-right
-  5. Faint blue core haze    large radial overlay, keeps centre readable
-  6. Radial vignette scrim   darkens edges → forces text contrast at margins
-  7. SVG film-grain noise    inline data-URI, adds photographic texture
-
-GLASSMORPHISM STRATEGY
-----------------------
-Every container gets the same three-property glass treatment:
-  background : rgba(…, alpha)      — semi-transparent fill
-  backdrop-filter : blur(Npx)      — blurs whatever is behind the element
-  border : 1px solid rgba(…, low) — hairline light edge ("frosted" rim)
-  box-shadow : inset highlight +
-               outer depth shadow  — simulates glass thickness
+NEW FEATURE: Ken Burns Drift Effect
+-----------------------------------
+The nebula background now has a slow, cinematic zoom + gentle rotation
+that simulates drifting through deep space. Uses CSS transforms with
+ease-in-out timing for seamless looping.
 """
 
 import streamlit as st
@@ -89,7 +68,7 @@ C_PERI   = "#00d4ff"
 C_ANNO   = "#ffe66d"
 
 # =============================================================================
-# ░░░  MASTER CSS — HD NEBULA BACKGROUND + GLASSMORPHISM HUD  ░░░
+# ░░░  MASTER CSS — NEBULA BACKGROUND + KEN BURNS ZOOM + GLASSMORPHISM  ░░░
 # =============================================================================
 st.markdown("""
 <style>
@@ -97,33 +76,58 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Exo+2:wght@300;400;600;800&display=swap');
 
 /* ════════════════════════════════════════════════════════════════════════════
-   NEBULA BACKGROUND — applied directly to every Streamlit root container.
-
-   WHY THIS APPROACH:
-   Streamlit renders: <body> → stApp → stAppViewContainer → stMain → ...
-   Each layer can have its own background that paints over the one below.
-   Using ::before pseudo-elements with z-index:-2 fails because Streamlit's
-   intermediate containers intercept and cover them.
-
-   SOLUTION: Apply the exact same nebula background-image to ALL root
-   containers simultaneously with background-attachment:fixed. Because
-   fixed backgrounds are always positioned relative to the VIEWPORT (not
-   the element), every container shows the identical scene — the layers
-   visually merge into one seamless image regardless of which DOM node
-   is actually "on top".
+   KEN BURNS DRIFT EFFECT
+   A slow, cinematic zoom + gentle rotation that simulates drifting through
+   deep space. The animation loops seamlessly with a 32-second duration.
 ════════════════════════════════════════════════════════════════════════════ */
 
-/* Shared nebula definition — reused on every container */
-html,
-body,
-.stApp,
-[data-testid="stAppViewContainer"],
-[data-testid="stMain"],
-[data-testid="stHeader"],
-[data-testid="stBottom"],
-[data-testid="stDecoration"],
-section[data-testid="stSidebar"] ~ div,
-.main {
+/* Wrapper that animates the entire background layer */
+@keyframes cosmicDrift {
+    0% {
+        transform: scale(1.00) rotate(0deg);
+    }
+    25% {
+        transform: scale(1.03) rotate(0.5deg);
+    }
+    50% {
+        transform: scale(1.07) rotate(0deg);
+    }
+    75% {
+        transform: scale(1.05) rotate(-0.3deg);
+    }
+    100% {
+        transform: scale(1.00) rotate(0deg);
+    }
+}
+
+/* Alternative: pure zoom-only for a calmer, more majestic feel */
+@keyframes cosmicZoom {
+    0% {
+        transform: scale(1.00);
+    }
+    50% {
+        transform: scale(1.12);
+    }
+    100% {
+        transform: scale(1.00);
+    }
+}
+
+/* The drifting container — applies to the animated layer */
+.cosmic-drift {
+    position: fixed;
+    top: -8%;
+    left: -8%;
+    width: 116%;
+    height: 116%;
+    z-index: -1;
+    pointer-events: none;
+    animation: cosmicZoom 28s ease-in-out infinite alternate;
+    will-change: transform;
+}
+
+/* Apply the nebula background to the drifting layer */
+.cosmic-drift {
     background-color: #02030a !important;
     background-image:
         /* Grain — tiled SVG noise, zero network cost */
@@ -151,20 +155,37 @@ section[data-testid="stSidebar"] ~ div,
         no-repeat, no-repeat, no-repeat,
         no-repeat, no-repeat, no-repeat !important;
 
-    /* CRITICAL: fixed means the background is anchored to the viewport,
-       not the element — so every container shows the same nebula scene */
-    background-attachment: fixed !important;
-
-    min-height: 100vh;
+    background-attachment: scroll !important;
 }
 
-/* Star-field — 10 fixed 1px radial dots that slowly pulse */
-body::after {
-    content: "";
+/* Animated star field — separate from nebula, also drifts */
+@keyframes starDrift {
+    0% {
+        transform: translate(0%, 0%) scale(1);
+        opacity: 0.5;
+    }
+    50% {
+        transform: translate(-2%, -1.5%) scale(1.08);
+        opacity: 0.9;
+    }
+    100% {
+        transform: translate(0%, 0%) scale(1);
+        opacity: 0.5;
+    }
+}
+
+.star-drift {
     position: fixed;
     inset: 0;
-    z-index: 0;
+    z-index: -1;
     pointer-events: none;
+    animation: starDrift 35s ease-in-out infinite alternate;
+}
+
+.star-drift::after {
+    content: "";
+    position: absolute;
+    inset: 0;
     background-image:
         radial-gradient(1.2px 1.2px at  8%  12%, rgba(255,255,255,0.60) 0%, transparent 100%),
         radial-gradient(1.0px 1.0px at 22%  78%, rgba(255,255,255,0.45) 0%, transparent 100%),
@@ -175,25 +196,30 @@ body::after {
         radial-gradient(1.2px 1.2px at 92%  87%, rgba(180,210,255,0.46) 0%, transparent 100%),
         radial-gradient(1.0px 1.0px at 14%  55%, rgba(255,255,255,0.38) 0%, transparent 100%),
         radial-gradient(1.2px 1.2px at 46%  90%, rgba(255,255,255,0.52) 0%, transparent 100%),
-        radial-gradient(1.0px 1.0px at 73%  43%, rgba(200,240,255,0.42) 0%, transparent 100%);
+        radial-gradient(1.0px 1.0px at 73%  43%, rgba(200,240,255,0.42) 0%, transparent 100%),
+        /* Additional stars for richer field */
+        radial-gradient(0.8px 0.8px at 91%  33%, rgba(255,220,180,0.48) 0%, transparent 100%),
+        radial-gradient(1.1px 1.1px at 47%  67%, rgba(180,200,255,0.44) 0%, transparent 100%),
+        radial-gradient(0.9px 0.9px at 63%  88%, rgba(255,255,210,0.52) 0%, transparent 100%);
     background-size: 100% 100%;
     background-repeat: no-repeat;
-    background-attachment: fixed;
-    animation: starTwinkle 7s ease-in-out infinite alternate;
-}
-@keyframes starTwinkle {
-    0%   { opacity: 0.50; }
-    50%  { opacity: 1.00; }
-    100% { opacity: 0.60; }
 }
 
+/* ════════════════════════════════════════════════════════════════════════════
+   BASE CONTAINERS — transparent so the animated background shows through
+════════════════════════════════════════════════════════════════════════════ */
+html, body, .stApp, [data-testid="stAppViewContainer"],
+[data-testid="stMain"], [data-testid="stHeader"], [data-testid="stBottom"],
+[data-testid="stDecoration"], section[data-testid="stSidebar"] ~ div, .main {
+    background: transparent !important;
+    background-color: transparent !important;
+}
 
 /* ════════════════════════════════════════════════════════════════════════════
    GLASSMORPHISM — MAIN CONTENT PANEL
-   alpha=0.46 lets the nebula show through while still anchoring text
 ════════════════════════════════════════════════════════════════════════════ */
 .main .block-container {
-    background: rgba(3, 7, 20, 0.46) !important;
+    background: rgba(3, 7, 22, 0.46) !important;
     backdrop-filter:          blur(22px) saturate(170%) brightness(0.95) !important;
     -webkit-backdrop-filter:  blur(22px) saturate(170%) brightness(0.95) !important;
     border-radius: 20px !important;
@@ -211,7 +237,6 @@ body::after {
 
 /* ════════════════════════════════════════════════════════════════════════════
    GLASSMORPHISM — SIDEBAR
-   Stronger blur (28px) because sidebar is narrower and needs more opacity
 ════════════════════════════════════════════════════════════════════════════ */
 section[data-testid="stSidebar"] {
     background: rgba(3, 7, 22, 0.72) !important;
@@ -275,8 +300,6 @@ div[data-testid="stSpinner"] > div {
 
 /* ════════════════════════════════════════════════════════════════════════════
    GLASSMORPHISM — STAT CARDS
-   Each card is its own mini glass pane with a coloured top-accent bar
-   and a frosted shimmer pseudo-element
 ════════════════════════════════════════════════════════════════════════════ */
 .stat-card {
     background:              rgba(5, 12, 32, 0.58);
@@ -500,6 +523,10 @@ section[data-testid="stSidebar"] hr {
     border-color: rgba(40, 70, 130, 0.30) !important;
 }
 </style>
+
+<!-- KEN BURNS DRIFT LAYER — the animated cosmic background -->
+<div class="cosmic-drift"></div>
+<div class="star-drift"></div>
 """, unsafe_allow_html=True)
 
 # ── Sidebar state lock (session state + JS belt-and-suspenders) ───────────────
