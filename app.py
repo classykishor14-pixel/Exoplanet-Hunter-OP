@@ -800,11 +800,8 @@ div.element-container div.stAlert {
 .ppc-ticker-inner span { color: #00aabb; margin: 0 3px; }
 </style>
 
-<!-- KEN BURNS DRIFT LAYER — the animated cosmic background -->
 <div class="cosmic-drift"></div>
 <div class="star-drift"></div>
-<!-- Optional CRT scanline effect (uncomment to enable) -->
-<!-- <div class="scanline"></div> -->
 """, unsafe_allow_html=True)
 
 # ── Sidebar state lock (session state + JS belt-and-suspenders) ───────────────
@@ -1162,17 +1159,14 @@ def _svg_radial_gauge(score: float, color: str, size: int = 108) -> str:
       <stop offset="100%" stop-color="{color}" stop-opacity="0.55"/>
     </linearGradient>
   </defs>
-  <!-- Background track -->
   <circle cx="{cx}" cy="{cy}" r="{r}" fill="none"
           stroke="rgba(0,212,255,0.10)" stroke-width="8"/>
-  <!-- Progress arc -->
   <circle cx="{cx}" cy="{cy}" r="{r}" fill="none"
           stroke="url(#ringGrad)" stroke-width="8"
           stroke-linecap="round"
           stroke-dasharray="{filled:.1f} {gap:.1f}"
           transform="rotate(-90 {cx} {cy})"
           filter="url(#glowRing)"/>
-  <!-- Centre score text -->
   <text x="{cx}" y="{cy - 6}" text-anchor="middle"
         font-family="Space Mono, monospace" font-size="18" font-weight="700"
         fill="{color}">{score:.0f}</text>
@@ -1215,7 +1209,6 @@ def _svg_planet_orb(comp_color: str, hz_color: str, radius_earth: float) -> str:
       <circle cx="{cx}" cy="{cy}" r="{orb_r}"/>
     </clipPath>
   </defs>
-  <!-- Ambient outer glow -->
   <circle cx="{cx}" cy="{cy}" r="{orb_r + 16}"
           fill="url(#glowGrad)" opacity="0.7">
     <animate attributeName="r"
@@ -1224,21 +1217,16 @@ def _svg_planet_orb(comp_color: str, hz_color: str, radius_earth: float) -> str:
     <animate attributeName="opacity"
       values="0.5;0.85;0.5" dur="4s" repeatCount="indefinite"/>
   </circle>
-  <!-- Orbital ring (back half) -->
   <ellipse cx="{cx}" cy="{cy}" rx="{ring_rx}" ry="{ring_ry}"
            fill="none" stroke="{c2}" stroke-width="1.2" opacity="0.30"/>
-  <!-- Planet body -->
   <circle cx="{cx}" cy="{cy}" r="{orb_r}"
           fill="url(#orbGrad)" filter="url(#orbGlow)"/>
-  <!-- Surface shimmer band -->
   <ellipse cx="{cx}" cy="{int(cy - orb_r*0.18)}"
            rx="{int(orb_r*0.72)}" ry="{int(orb_r*0.14)}"
            fill="{c1}" opacity="0.12" clip-path="url(#orbClip)"/>
-  <!-- Specular highlight -->
   <ellipse cx="{int(cx - orb_r*0.28)}" cy="{int(cy - orb_r*0.30)}"
            rx="{int(orb_r*0.24)}" ry="{int(orb_r*0.14)}"
            fill="white" opacity="0.18" clip-path="url(#orbClip)"/>
-  <!-- Orbital ring (front half, over planet) -->
   <path d="M {cx-ring_rx} {cy}
            A {ring_rx} {ring_ry} 0 0 0 {cx+ring_rx} {cy}"
         fill="none" stroke="{c2}" stroke-width="1.4" opacity="0.55"/>
@@ -1358,13 +1346,10 @@ def build_planet_profile_card(
 <div class="planet-profile-card glass-in">
 <div class="ppc-content">
 
-  <!-- ── HEADER ROW ── -->
   <div style="display:flex;align-items:center;gap:28px;margin-bottom:26px;flex-wrap:wrap;">
 
-    <!-- Animated planet orb -->
     <div style="flex-shrink:0;">{orb_svg}</div>
 
-    <!-- Name + orbital strip -->
     <div style="flex:1;min-width:200px;">
       <div style="font-family:'Space Mono',monospace;font-size:0.60rem;
                   letter-spacing:0.30em;color:#00ccaa;margin-bottom:4px;">
@@ -1381,7 +1366,6 @@ def build_planet_profile_card(
         &nbsp;·&nbsp; {hz['zone_emoji']} {hz['zone_label']}
         &nbsp;·&nbsp; {atm['emoji']} {atm['label']}
       </div>
-      <!-- Orbital progress strip -->
       <div style="margin-top:12px;display:flex;align-items:center;gap:10px;">
         <div style="flex:1;height:3px;border-radius:2px;
                     background:linear-gradient(90deg,
@@ -1400,7 +1384,6 @@ def build_planet_profile_card(
       </div>
     </div>
 
-    <!-- Tier badge -->
     <div style="flex-shrink:0;padding:8px 18px;border-radius:10px;
                 background:{tier_bg};border:1px solid {tier_border};
                 font-family:'Space Mono',monospace;font-size:0.62rem;
@@ -1413,11 +1396,9 @@ def build_planet_profile_card(
     </div>
   </div>
 
-  <!-- ── THREE ICON COLUMNS + QUICK STATS ── -->
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;
               margin-bottom:4px;">
 
-    <!-- Column 1: Composition -->
     <div class="ppc-icon-panel" style="border-color:rgba({int(comp_color[1:3],16)},{int(comp_color[3:5],16)},{int(comp_color[5:7],16)},0.35);">
       <div class="ppc-panel-title">◈ Composition</div>
       <div class="ppc-icon" style="color:{comp_color};">{comp['emoji']}</div>
@@ -1430,7 +1411,6 @@ def build_planet_profile_card(
         <span style="color:#00ccaa;">{comp['density_rel']:.2f}×</span> Earth<br>
         R<sub>p</sub> = <span style="color:#00ccaa;">{planet_radius_earth:.2f}</span> R⊕
       </div>
-      <!-- Density mini-bar -->
       <div style="margin-top:9px;background:rgba(255,255,255,0.06);
                   border-radius:3px;height:4px;overflow:hidden;">
         <div style="width:{int(min(100, comp['density_gcc'] / 14.0 * 100))}%;
@@ -1443,7 +1423,6 @@ def build_planet_profile_card(
       </div>
     </div>
 
-    <!-- Column 2: Atmosphere Potential -->
     <div class="ppc-icon-panel" style="border-color:rgba({int(atm_color[1:3],16)},{int(atm_color[3:5],16)},{int(atm_color[5:7],16)},0.32);">
       <div class="ppc-panel-title">💨 Atmosphere</div>
       <div class="ppc-icon" style="color:{atm_color};">{atm['emoji']}</div>
@@ -1457,7 +1436,6 @@ def build_planet_profile_card(
       {atm_bar}
     </div>
 
-    <!-- Column 3: Habitability Score -->
     <div class="ppc-icon-panel" style="border-color:{hz_color}44;">
       <div class="ppc-panel-title">🌿 Habitability Score</div>
       <div class="ppc-score-ring">{gauge_svg}</div>
@@ -1477,7 +1455,6 @@ def build_planet_profile_card(
       </div>
     </div>
 
-    <!-- Column 4: Quick Stats -->
     <div class="ppc-icon-panel">
       <div class="ppc-panel-title">📡 Telemetry</div>
       <div style="font-family:'Space Mono',monospace;font-size:0.68rem;
@@ -1486,15 +1463,14 @@ def build_planet_profile_card(
       </div>
     </div>
 
-  </div><!-- /grid -->
+  </div>
 
-  <!-- ── TICKER TAPE ── -->
   <div class="ppc-ticker">
     <div class="ppc-ticker-inner">{ticker_str}</div>
   </div>
 
-</div><!-- /ppc-content -->
-</div><!-- /planet-profile-card -->
+</div>
+</div>
 """
     return card
 
@@ -2345,7 +2321,6 @@ with _hi_col1:
                   margin-top:4px;">
         {_hi_val:.1f}<span style="font-size:1rem;color:#00ccaa;"> / 100</span>
       </div>
-      <!-- progress bar -->
       <div style="margin-top:8px;background:rgba(255,255,255,0.07);
                   border-radius:4px;height:6px;overflow:hidden;">
         <div style="width:{_bar_pct}%;height:100%;background:linear-gradient(90deg,
