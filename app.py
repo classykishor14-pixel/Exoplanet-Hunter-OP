@@ -97,130 +97,94 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Exo+2:wght@300;400;600;800&display=swap');
 
 /* ════════════════════════════════════════════════════════════════════════════
-   LAYER 0 — ROOT  :  kill Streamlit's white default
-════════════════════════════════════════════════════════════════════════════ */
-html, body, [data-testid="stAppViewContainer"], .stApp {
-    background: transparent !important;
-}
+   NEBULA BACKGROUND — applied directly to every Streamlit root container.
 
-/* ════════════════════════════════════════════════════════════════════════════
-   LAYER 1-7 — HD CSS NEBULA
-   All layers are position:fixed so they never scroll and cover the full
-   viewport at all times, including during long scroll on result pages.
+   WHY THIS APPROACH:
+   Streamlit renders: <body> → stApp → stAppViewContainer → stMain → ...
+   Each layer can have its own background that paints over the one below.
+   Using ::before pseudo-elements with z-index:-2 fails because Streamlit's
+   intermediate containers intercept and cover them.
+
+   SOLUTION: Apply the exact same nebula background-image to ALL root
+   containers simultaneously with background-attachment:fixed. Because
+   fixed backgrounds are always positioned relative to the VIEWPORT (not
+   the element), every container shows the identical scene — the layers
+   visually merge into one seamless image regardless of which DOM node
+   is actually "on top".
 ════════════════════════════════════════════════════════════════════════════ */
 
-/* Base void — the darkest possible space colour */
-.stApp {
+/* Shared nebula definition — reused on every container */
+html,
+body,
+.stApp,
+[data-testid="stAppViewContainer"],
+[data-testid="stMain"],
+[data-testid="stHeader"],
+[data-testid="stBottom"],
+[data-testid="stDecoration"],
+section[data-testid="stSidebar"] ~ div,
+.main {
     background-color: #02030a !important;
-    min-height: 100vh;
-    position: relative;
-}
-
-/* The nebula itself — seven gradient layers stacked */
-.stApp::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: -2;
-
     background-image:
-        /* ── L7: SVG film-grain noise (inline, zero network cost) ── */
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.68' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23g)' opacity='0.038'/%3E%3C/svg%3E"),
-
-        /* ── L6: Edge-darkening radial vignette scrim ── */
-        radial-gradient(
-            ellipse 110% 110% at 50% 50%,
-            transparent 30%,
-            rgba(1, 2, 10, 0.72) 75%,
-            rgba(1, 2, 8,  0.96) 100%
-        ),
-
-        /* ── L5: Soft blue core haze (keeps centre readable) ── */
-        radial-gradient(
-            ellipse 80% 65% at 52% 48%,
-            rgba(8, 18, 55, 0.55) 0%,
-            transparent 70%
-        ),
-
-        /* ── L4: Amber / gold emission wisps — bottom-right ── */
-        radial-gradient(
-            ellipse 52% 38% at 82% 82%,
-            rgba(210, 95, 12, 0.26) 0%,
-            rgba(160, 55,  8, 0.12) 45%,
-            transparent 72%
-        ),
-
-        /* ── L3: Teal / cyan star-cluster glow — top-right ── */
-        radial-gradient(
-            ellipse 48% 42% at 80% 14%,
-            rgba(0,  185, 230, 0.30) 0%,
-            rgba(0,  100, 175, 0.14) 50%,
-            transparent 78%
-        ),
-
-        /* ── L2: Purple nebula cloud body — centre-left ── */
-        radial-gradient(
-            ellipse 68% 58% at 16% 52%,
-            rgba(105, 22, 165, 0.40) 0%,
-            rgba( 55, 10,  95, 0.20) 48%,
-            transparent 78%
-        ),
-
-        /* ── L1: Deep navy void (absolute base) ── */
-        linear-gradient(
-            158deg,
-            #04060f 0%,
-            #020309 55%,
-            #030509 100%
-        );
+        /* Grain — tiled SVG noise, zero network cost */
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.68' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23g)' opacity='0.04'/%3E%3C/svg%3E"),
+        /* Edge vignette — darkens corners, forces text contrast */
+        radial-gradient(ellipse 120% 120% at 50% 50%, transparent 28%, rgba(1,2,10,0.80) 72%, rgba(1,2,8,0.97) 100%),
+        /* Blue core haze */
+        radial-gradient(ellipse 80% 65% at 52% 48%, rgba(8,18,55,0.55) 0%, transparent 70%),
+        /* Amber emission wisps — bottom-right */
+        radial-gradient(ellipse 52% 38% at 82% 82%, rgba(210,95,12,0.30) 0%, rgba(160,55,8,0.14) 45%, transparent 72%),
+        /* Teal star-cluster glow — top-right */
+        radial-gradient(ellipse 48% 42% at 80% 14%, rgba(0,185,230,0.34) 0%, rgba(0,100,175,0.16) 50%, transparent 78%),
+        /* Purple nebula cloud — centre-left */
+        radial-gradient(ellipse 68% 58% at 16% 52%, rgba(105,22,165,0.44) 0%, rgba(55,10,95,0.22) 48%, transparent 78%),
+        /* Deep navy void — absolute base */
+        linear-gradient(158deg, #04060f 0%, #020309 55%, #030509 100%) !important;
 
     background-size:
-        400px 400px,   /* grain tile */
-        100% 100%,     /* vignette */
-        100% 100%,     /* core haze */
-        100% 100%,     /* amber wisps */
-        100% 100%,     /* teal glow */
-        100% 100%,     /* purple cloud */
-        100% 100%;     /* navy base */
+        400px 400px,
+        100% 100%, 100% 100%, 100% 100%,
+        100% 100%, 100% 100%, 100% 100% !important;
 
     background-repeat:
         repeat,
         no-repeat, no-repeat, no-repeat,
-        no-repeat, no-repeat, no-repeat;
+        no-repeat, no-repeat, no-repeat !important;
 
-    /* Fixed keeps every layer pinned while the page scrolls */
-    background-attachment:
-        fixed, fixed, fixed, fixed, fixed, fixed, fixed;
+    /* CRITICAL: fixed means the background is anchored to the viewport,
+       not the element — so every container shows the same nebula scene */
+    background-attachment: fixed !important;
 
-    pointer-events: none;
+    min-height: 100vh;
 }
 
-/* Faint animated star-field — subtle CSS keyframe twinkle */
-.stApp::after {
+/* Star-field — 10 fixed 1px radial dots that slowly pulse */
+body::after {
     content: "";
     position: fixed;
     inset: 0;
-    z-index: -1;
+    z-index: 0;
+    pointer-events: none;
     background-image:
-        radial-gradient(1px 1px at  8%  12%, rgba(255,255,255,0.55) 0%, transparent 100%),
-        radial-gradient(1px 1px at 22%  78%, rgba(255,255,255,0.40) 0%, transparent 100%),
-        radial-gradient(1px 1px at 37%  31%, rgba(180,220,255,0.50) 0%, transparent 100%),
-        radial-gradient(1px 1px at 55%   9%, rgba(255,255,255,0.45) 0%, transparent 100%),
-        radial-gradient(1px 1px at 68%  62%, rgba(200,230,255,0.38) 0%, transparent 100%),
-        radial-gradient(1px 1px at 81%  24%, rgba(255,255,255,0.52) 0%, transparent 100%),
-        radial-gradient(1px 1px at 92%  87%, rgba(180,210,255,0.42) 0%, transparent 100%),
-        radial-gradient(1px 1px at 14%  55%, rgba(255,255,255,0.35) 0%, transparent 100%),
-        radial-gradient(1px 1px at 46%  90%, rgba(255,255,255,0.48) 0%, transparent 100%),
-        radial-gradient(1px 1px at 73%  43%, rgba(200,240,255,0.38) 0%, transparent 100%);
+        radial-gradient(1.2px 1.2px at  8%  12%, rgba(255,255,255,0.60) 0%, transparent 100%),
+        radial-gradient(1.0px 1.0px at 22%  78%, rgba(255,255,255,0.45) 0%, transparent 100%),
+        radial-gradient(1.2px 1.2px at 37%  31%, rgba(180,220,255,0.55) 0%, transparent 100%),
+        radial-gradient(1.0px 1.0px at 55%   9%, rgba(255,255,255,0.50) 0%, transparent 100%),
+        radial-gradient(1.2px 1.2px at 68%  62%, rgba(200,230,255,0.42) 0%, transparent 100%),
+        radial-gradient(1.0px 1.0px at 81%  24%, rgba(255,255,255,0.56) 0%, transparent 100%),
+        radial-gradient(1.2px 1.2px at 92%  87%, rgba(180,210,255,0.46) 0%, transparent 100%),
+        radial-gradient(1.0px 1.0px at 14%  55%, rgba(255,255,255,0.38) 0%, transparent 100%),
+        radial-gradient(1.2px 1.2px at 46%  90%, rgba(255,255,255,0.52) 0%, transparent 100%),
+        radial-gradient(1.0px 1.0px at 73%  43%, rgba(200,240,255,0.42) 0%, transparent 100%);
     background-size: 100% 100%;
     background-repeat: no-repeat;
-    animation: starTwinkle 8s ease-in-out infinite alternate;
-    pointer-events: none;
+    background-attachment: fixed;
+    animation: starTwinkle 7s ease-in-out infinite alternate;
 }
 @keyframes starTwinkle {
-    0%   { opacity: 0.55; }
+    0%   { opacity: 0.50; }
     50%  { opacity: 1.00; }
-    100% { opacity: 0.65; }
+    100% { opacity: 0.60; }
 }
 
 
