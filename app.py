@@ -1,7 +1,7 @@
 """
 ==============================================================================
   EXOPLANET DETECTION SYSTEM — Streamlit Web Application
-  app.py  [RESTORED: Original Layout + Glassy Cosmic Background]
+  app.py  [RESTORED: Blurry Cosmic Background, Transparent Panels, Path Fix]
 ==============================================================================
 HOW TO RUN
     pip install streamlit lightkurve astropy matplotlib numpy
@@ -19,9 +19,9 @@ st.set_page_config(
 
 import warnings
 import shutil
-from pathlib import Path
-import base64
 import os
+import base64
+from pathlib import Path
 
 import numpy as np
 import matplotlib
@@ -61,18 +61,25 @@ C_PERI   = "#00d4ff"
 C_ANNO   = "#ffe66d"
 
 # =============================================================================
-# CSS  —  Glassy cosmic background + full glassmorphism
+# CSS  —  Blurry Cosmic Background + Transparent Panels
 # =============================================================================
 
 @st.cache_data
 def get_base64_of_bin_file(bin_file):
-    if os.path.exists(bin_file):
+    # USE ABSOLUTE PATH: This prevents Streamlit Cloud FileNotFoundError crashes!
+    file_path = os.path.join(os.path.dirname(__file__), bin_file)
+    
+    if os.path.exists(file_path):
+        with open(file_path, 'rb') as f:
+            data = f.read()
+        return base64.b64encode(data).decode()
+    elif os.path.exists(bin_file):
         with open(bin_file, 'rb') as f:
             data = f.read()
         return base64.b64encode(data).decode()
     return ""
 
-# Loads your cosmic image
+# Loads your cosmic image safely
 bg_img_base64 = get_base64_of_bin_file("cosmic_bg.png")
 bg_image_css = f'url("data:image/png;base64,{bg_img_base64}")' if bg_img_base64 else 'radial-gradient(circle at 50% 50%, #1a0b2e 0%, #040814 100%)'
 
@@ -136,7 +143,7 @@ st.markdown("""
   .css-1lcbmhc, .css-1d391kg { display: none !important; }
 
   /* ══════════════════════════════════════════════════════════════════════
-     GLASSMORPHISM — Streamlit native alert/info boxes
+     Streamlit native alert/info boxes
   ══════════════════════════════════════════════════════════════════════ */
   div[data-testid="stExpander"],
   div[data-testid="stInfo"],
@@ -159,7 +166,7 @@ st.markdown("""
   }
 
   /* ══════════════════════════════════════════════════════════════════════
-     GLASSMORPHISM — matplotlib figure wrappers
+     matplotlib figure wrappers
   ══════════════════════════════════════════════════════════════════════ */
   div[data-testid="stPyplotRootElement"] {
       background: rgba(3, 8, 20, 0.48) !important;
@@ -210,7 +217,7 @@ st.markdown("""
   }
 
   /* ══════════════════════════════════════════════════════════════════════
-     GLASSMORPHISM STAT CARDS
+     STAT CARDS
   ══════════════════════════════════════════════════════════════════════ */
   .stat-card {
       background: rgba(6, 14, 34, 0.55);
