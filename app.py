@@ -20,7 +20,7 @@ import streamlit as st
 # set_page_config MUST be the absolute first Streamlit call in the file
 st.set_page_config(
     page_title="Exoplanet Hunter",
-    page_icon="EXO-DS.png",
+    page_icon="Exohunt.png",
     layout="wide",
     initial_sidebar_state="expanded",
 )
