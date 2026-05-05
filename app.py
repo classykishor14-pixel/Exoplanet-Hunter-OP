@@ -1,7 +1,7 @@
 """
 ==============================================================================
   EXOPLANET DETECTION SYSTEM — Streamlit Web Application
-  app.py  [RESTORED: Original Layout + Glassy Monochrome Background]
+  app.py  [RESTORED: Original Layout + Glassy Cosmic Background]
 ==============================================================================
 HOW TO RUN
     pip install streamlit lightkurve astropy matplotlib numpy
@@ -20,6 +20,8 @@ st.set_page_config(
 import warnings
 import shutil
 from pathlib import Path
+import base64
+import os
 
 import numpy as np
 import matplotlib
@@ -61,8 +63,6 @@ C_ANNO   = "#ffe66d"
 # =============================================================================
 # CSS  —  Glassy cosmic background + full glassmorphism
 # =============================================================================
-import base64
-import os
 
 @st.cache_data
 def get_base64_of_bin_file(bin_file):
@@ -113,7 +113,7 @@ st.markdown("""
   }
 
   /* ══════════════════════════════════════════════════════════════════════
-     GLASSMORPHISM — sidebar (FIXED VISIBILITY)
+     GLASSMORPHISM — sidebar (FIXED VISIBILITY & Translucent)
   ══════════════════════════════════════════════════════════════════════ */
   section[data-testid="stSidebar"] {
       background: rgba(8, 12, 30, 0.45) !important; /* Reduced opacity */
