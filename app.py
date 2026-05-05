@@ -1,7 +1,7 @@
 """
 ==============================================================================
   EXOPLANET DETECTION SYSTEM — Streamlit Web Application
-  app.py  [sandigdh link hata diya gaya]
+  app.py  [UPGRADED: Multi-Mission TESS & Kepler Support + Cosmic BG]
 ==============================================================================
 HOW TO RUN
     pip install streamlit lightkurve astropy matplotlib numpy
@@ -63,7 +63,7 @@ C_ANNO   = "#ffe66d"
 # =============================================================================
 
 # HD Cosmic Wallpaper Direct URL (Guaranteed to load on Streamlit Cloud)
-COSMIC_BG_URL = "https://svs.gsfc.nasa.gov/vis/a010000/a014800/a014866/NGC_1929_from_Spitzer_Chandra_ESO_desktop.png"
+COSMIC_BG_URL = "https://raw.githubusercontent.com/classykishor14-pixel/Exoplanet-Hunter-OP/main/cosmic_bg.png"
 
 st.markdown(f"""
 <style>
@@ -79,13 +79,12 @@ st.markdown(f"""
   .stApp::before {{
       content: "";
       position: fixed;
-      /* Negative margins stretch the image to hide the messy edges caused by the blur filter */
       top: -20px; left: -20px; right: -20px; bottom: -20px; 
       background-image: url('{COSMIC_BG_URL}');
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
-      filter: blur(8px) brightness(0.5); /* Blurs the image and darkens it so text is readable */
+      filter: blur(8px) brightness(0.5); 
       z-index: -1;
   }}
 
@@ -110,7 +109,7 @@ st.markdown(f"""
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
       border: none !important;
-      border-right: 1px solid rgba(255, 255, 255, 0.08) !important; /* Tiny subtle separator line */
+      border-right: 1px solid rgba(255, 255, 255, 0.08) !important; 
       box-shadow: none !important;
       min-width: 265px !important;
       max-width: 320px !important;
@@ -282,6 +281,14 @@ st.markdown(f"""
       box-shadow: 0 0 28px rgba(0,212,255,0.30), inset 0 1px 0 rgba(255,255,255,0.09) !important;
       border-color: rgba(0,212,255,0.72) !important;
   }}
+  
+  /* Radio Button styling for Mission Toggle */
+  div.row-widget.stRadio > div {{
+      flex-direction: row;
+      gap: 15px;
+      justify-content: center;
+      margin-bottom: 10px;
+  }}
 
   /* ── ANIMATIONS ── */
   @keyframes fadeUp {{
@@ -346,7 +353,7 @@ def make_fig(w=13, h=4.2):
 
 
 # =============================================================================
-# PIPELINE
+# PIPELINE - TESS & KEPLER INTEGRATED
 # =============================================================================
 
 def clear_lk_cache():
@@ -358,19 +365,31 @@ def clear_lk_cache():
 
 
 @st.cache_data(show_spinner=False)
-def fetch_and_clean(target: str, quarter: int):
-    result = lk.search_lightcurve(
-        target, mission="Kepler", quarter=quarter,
-        cadence="long", author="Kepler",
-    )
-    if len(result) == 0:
-        raise ValueError(
-            f"No Kepler data found for '{target}' Q{quarter}. "
-            "Check the star name (e.g. 'Kepler-22') or try a different quarter."
+def fetch_and_clean(target: str, mission: str, time_segment: int):
+    """
+    Fetches data from either Kepler (using Quarters) or TESS (using Sectors).
+    """
+    if mission == "Kepler":
+        result = lk.search_lightcurve(
+            target, mission="Kepler", quarter=time_segment,
+            cadence="long", author="Kepler",
         )
+        err_msg = f"No Kepler data found for '{target}' in Q{time_segment}."
+    else:
+        # TESS support
+        result = lk.search_lightcurve(
+            target, mission="TESS", sector=time_segment,
+            author="SPOC", 
+        )
+        err_msg = f"No TESS data found for '{target}' in Sector {time_segment}."
+
+    if len(result) == 0:
+        raise ValueError(f"{err_msg} Check the star name or try a different Quarter/Sector.")
 
     lc = result.download_all().stitch()
     cols_lower = [c.lower() for c in lc.columns]
+    
+    # Handle different flux column names between missions
     if "pdcsap_flux" in cols_lower:
         lc = lc.select_flux("pdcsap_flux")
     elif "sap_flux" in cols_lower:
@@ -453,7 +472,7 @@ def plot_raw(raw_time, raw_flux, raw_ferr, trend_time, trend_flux):
     ax.plot(trend_time, trend_flux, color=C_TREND, lw=1.8, alpha=0.9, zorder=3,
             label=f"SG trend  (window={SG_WINDOW}, poly={SG_POLY})")
     ax.axhline(1.0, color="#334", lw=0.7, ls="--", alpha=0.5)
-    ax.set_xlabel("Time  [BKJD]", color=C_TICK, fontsize=9)
+    ax.set_xlabel("Time  [Days]", color=C_TICK, fontsize=9)
     ax.set_ylabel("Normalised Flux", color=C_RAW, fontsize=9)
     ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.4f"))
     ax.legend(loc="upper right", fontsize=8, framealpha=0.25,
@@ -485,7 +504,7 @@ def plot_flat(flat_time, flat_flux, clean_time, clean_flux):
     ax2.plot(clean_time, clean_flux, color=C_CLEAN, lw=0.5, alpha=0.65, zorder=2,
              label="Planet-search ready  (outliers removed)")
     ax2.axhline(1.0, color="#334", lw=0.7, ls="--", alpha=0.5)
-    ax2.set_xlabel("Time  [BKJD]", color=C_TICK, fontsize=9)
+    ax2.set_xlabel("Time  [Days]", color=C_TICK, fontsize=9)
     ax2.set_ylabel("Flux", color=C_CLEAN, fontsize=9)
     ax2.legend(loc="upper right", fontsize=8, framealpha=0.25,
                facecolor=BG_PANEL, edgecolor="#1e2d50", labelcolor="white")
@@ -610,28 +629,39 @@ with st.sidebar:
       </div>
       <div style='font-size:0.7rem;color:#2a4a6a;text-transform:uppercase;
                   letter-spacing:0.12em;margin-top:4px;'>
-        Kepler Mission · BLS Detection
+        Multi-Mission BLS Engine
       </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # ── QUARTER SELECTOR ──────────────────────────────────────────────────────
+    # ── MISSION & TIMEFRAME SELECTOR (UPDATED FOR TESS) ───────────────────────
     st.markdown("---")
-    st.markdown('<div class="sidebar-label">KEPLER QUARTER</div>', unsafe_allow_html=True)
-    quarter = st.slider(
-        "quarter_slider",
-        min_value=0,
-        max_value=17,
-        value=6,
-        label_visibility="collapsed",
-        help="Kepler observed in 90-day quarters (Q0–Q17). Q6 is a good default for most targets.",
-    )
-    st.markdown(
-        f"<div style='font-size:0.68rem;color:#2a4a6a;margin-top:-6px;margin-bottom:8px;'>"
-        f"Selected: <span style='color:#00d4ff'>Q{quarter}</span> &nbsp;·&nbsp; "
-        f"Quarters available: 0 – 17</div>",
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="sidebar-label">TELESCOPE MISSION</div>', unsafe_allow_html=True)
+    
+    selected_mission = st.radio("mission_radio", ["Kepler", "TESS"], label_visibility="collapsed")
+    
+    st.markdown('<div class="sidebar-label" style="margin-top: 15px;">OBSERVATION WINDOW</div>', unsafe_allow_html=True)
+    
+    if selected_mission == "Kepler":
+        time_segment = st.slider(
+            "quarter_slider", min_value=0, max_value=17, value=6,
+            label_visibility="collapsed"
+        )
+        st.markdown(
+            f"<div style='font-size:0.68rem;color:#2a4a6a;margin-top:-6px;margin-bottom:8px;'>"
+            f"Selected Quarter: <span style='color:#00d4ff'>Q{time_segment}</span> &nbsp;·&nbsp; "
+            f"Range: 0 – 17</div>", unsafe_allow_html=True,
+        )
+    else:
+        time_segment = st.slider(
+            "sector_slider", min_value=1, max_value=85, value=1,
+            label_visibility="collapsed"
+        )
+        st.markdown(
+            f"<div style='font-size:0.68rem;color:#2a4a6a;margin-top:-6px;margin-bottom:8px;'>"
+            f"Selected Sector: <span style='color:#00d4ff'>S{time_segment}</span> &nbsp;·&nbsp; "
+            f"Range: 1 – 85+</div>", unsafe_allow_html=True,
+        )
 
     st.markdown("---")
     st.markdown("""
@@ -640,14 +670,6 @@ with st.sidebar:
       ① Download from MAST<br>② NaN removal + normalise<br>
       ③ Savitzky-Golay flatten<br>④ Outlier sigma-clip (4σ)<br>
       ⑤ BLS periodogram<br>⑥ Phase-fold &amp; bin
-    </div>
-    """, unsafe_allow_html=True)
-    st.markdown("---")
-    st.markdown("""
-    <div style='font-size:0.7rem;color:#1e3a5a;line-height:1.7;'>
-      Try: <span style='color:#2a5a8a'>Kepler-22 · Kepler-16<br>
-      Kepler-62 · Kepler-186</span><br><br>
-      Data: NASA MAST Archive
     </div>
     """, unsafe_allow_html=True)
 
@@ -663,10 +685,6 @@ with st.sidebar:
         **Goal:**
         🎯 **MIT Class of 2031**
         *Astrophysics & Aeronautical Engineering*.
-
-        **Technical Portfolio:**
-        * **ATS-1:** Specialized Asteroid Tracker System.
-        * **Exoplanet Hunter:** NASA MAST-based detection engine.
         """)
     st.info("Searching the cosmos for the next Earth-like world.")
 
@@ -685,13 +703,13 @@ if 'star_name' not in st.session_state:
 # =============================================================================
 
 st.markdown('<div class="hero-title animate-in">EXOPLANET HUNTER</div>', unsafe_allow_html=True)
-st.markdown('<div class="hero-sub animate-in delay-1">Kepler Space Telescope · Box Least Squares Detection Engine</div>',
+st.markdown('<div class="hero-sub animate-in delay-1">Multi-Mission Box Least Squares Detection Engine</div>',
             unsafe_allow_html=True)
 
 if not st.session_state.search_btn:
     c1, c2, c3 = st.columns(3)
     for col, color, label, value in [
-        (c1, "blue",  "MISSION",     "Kepler Space Telescope"),
+        (c1, "blue",  "MISSION",     f"{selected_mission} Space Telescope"),
         (c2, "green", "METHOD",      "Box Least Squares (BLS)"),
         (c3, "gold",  "DATA SOURCE", "NASA MAST Archive"),
     ]:
@@ -709,15 +727,28 @@ if not st.session_state.search_btn:
     st.session_state.star_name = st.text_input(
         "SEARCH THE COSMOS",
         value=st.session_state.star_name,
-        placeholder="Enter Star Name (e.g., Kepler-10)...",
+        placeholder="Enter Star Name (e.g., Kepler-10 or TRAPPIST-1)...",
         label_visibility="collapsed"
     )
 
-    st.markdown("""
+    # Dynamic suggestions based on mission
+    if selected_mission == "Kepler":
+        suggestions_html = """
+            <code style="color: #00d4ff; background: rgba(0,212,255,0.10); padding: 2px 8px; border-radius: 5px; border: 1px solid rgba(0,212,255,0.22);">Kepler-10</code>
+            <code style="color: #00d4ff; background: rgba(0,212,255,0.10); padding: 2px 8px; border-radius: 5px; border: 1px solid rgba(0,212,255,0.22);">Kepler-90</code>
+            <code style="color: #00d4ff; background: rgba(0,212,255,0.10); padding: 2px 8px; border-radius: 5px; border: 1px solid rgba(0,212,255,0.22);">Kepler-22</code>
+        """
+    else:
+        suggestions_html = """
+            <code style="color: #00d4ff; background: rgba(0,212,255,0.10); padding: 2px 8px; border-radius: 5px; border: 1px solid rgba(0,212,255,0.22);">TRAPPIST-1</code>
+            <code style="color: #00d4ff; background: rgba(0,212,255,0.10); padding: 2px 8px; border-radius: 5px; border: 1px solid rgba(0,212,255,0.22);">TOI-700</code>
+            <code style="color: #00d4ff; background: rgba(0,212,255,0.10); padding: 2px 8px; border-radius: 5px; border: 1px solid rgba(0,212,255,0.22);">WASP-126</code>
+        """
+
+    st.markdown(f"""
         <div style="display: flex; gap: 15px; justify-content: center; margin-top: -10px; margin-bottom: 20px;">
             <span style="font-size: 0.8rem; color: #667;">Suggestions:</span>
-            <code style="color: #00d4ff; background: rgba(0,212,255,0.10); padding: 2px 8px; border-radius: 5px; border: 1px solid rgba(0,212,255,0.22);">Kepler-90</code>
-            <code style="color: #00d4ff; background: rgba(0,212,255,0.10); padding: 2px 8px; border-radius: 5px; border: 1px solid rgba(0,212,255,0.22);">TRAPPIST-1</code>
+            {suggestions_html}
         </div>
     """, unsafe_allow_html=True)
 
@@ -733,11 +764,13 @@ if not st.session_state.search_btn:
 # RUN PIPELINE
 # =============================================================================
 
+time_label = "QUARTER" if selected_mission == "Kepler" else "SECTOR"
+
 st.markdown(f"""
 <div class="animate-in" style='font-family:Space Mono,monospace;
      font-size:0.8rem;color:#4a6a9a;margin-bottom:1rem;'>
      ANALYSING <span style='color:#00d4ff'>{st.session_state.star_name}</span>
-  &nbsp;·&nbsp; QUARTER {quarter}
+  &nbsp;·&nbsp; {selected_mission.upper()} {time_label} {time_segment}
 </div>""", unsafe_allow_html=True)
 
 with st.spinner("📡 Contacting NASA MAST archive and cleaning data …"):
@@ -745,14 +778,14 @@ with st.spinner("📡 Contacting NASA MAST archive and cleaning data …"):
         (raw_t, raw_f, raw_fe,
          trend_t, trend_f,
          flat_t, flat_f, flat_fe,
-         clean_t, clean_f, clean_fe) = fetch_and_clean(st.session_state.star_name, quarter)
+         clean_t, clean_f, clean_fe) = fetch_and_clean(st.session_state.star_name, selected_mission, time_segment)
     except Exception as e:
         st.error(
             f"**Download failed:** {e}\n\n"
             "**Common fixes:**\n"
-            "- Check star name spelling (`Kepler-22`, `Kepler-16`)\n"
-            "- Try a different quarter (0–17)\n"
-            "- **SSL error?** Your ISP is blocking NASA — enable a VPN and retry"
+            f"- Make sure you are using the right mission (e.g. TRAPPIST-1 is TESS, Kepler-10 is Kepler).\n"
+            f"- Try a different {time_label.lower()}.\n"
+            "- Check star name spelling."
         )
         st.session_state.search_btn = False
         st.stop()
@@ -834,7 +867,7 @@ st.markdown("---")
 st.markdown(f"""
 <div style='text-align:center;font-family:Space Mono,monospace;
      font-size:0.7rem;color:#3a5a80;padding:1rem 0 2rem;'>
-  {st.session_state.star_name.upper()} · Q{quarter} · {len(clean_t):,} cadences ·
+  {st.session_state.star_name.upper()} · {selected_mission} {time_label[0]}{time_segment} · {len(clean_t):,} cadences ·
   {t_span:.1f} d · Noise {noise_ppm:.0f} ppm ·
   P = {best_period:.5f} d · Depth {best_depth*1e6:.0f} ppm · NASA MAST
 </div>""", unsafe_allow_html=True)
