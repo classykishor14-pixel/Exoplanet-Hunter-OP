@@ -81,46 +81,48 @@ st.markdown("""
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Exo+2:wght@300;400;600;800&display=swap');
 
   /* ══════════════════════════════════════════════════════════════════════
-     COSMIC WALLPAPER BACKGROUND
+     COSMIC WALLPAPER BACKGROUND (BLURRED)
   ══════════════════════════════════════════════════════════════════════ */
   .stApp {
       background-color: #040814;
-      background-image: 
-          linear-gradient(rgba(4, 8, 20, 0.4), rgba(4, 8, 20, 0.4)), /* Dark overlay keeps text readable */
-          """ + bg_image_css + """;
+      min-height: 100vh;
+  }
+  .stApp::before {
+      content: "";
+      position: fixed;
+      /* Negative margins stretch the image to hide the messy edges caused by the blur filter */
+      top: -20px; left: -20px; right: -20px; bottom: -20px; 
+      background-image: """ + bg_image_css + """;
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
-      background-attachment: fixed;
-      min-height: 100vh;
+      filter: blur(10px) brightness(0.45); /* Blurs the image and darkens it so text is readable */
+      z-index: -1;
   }
 
   /* ══════════════════════════════════════════════════════════════════════
-     GLASSMORPHISM — main content panel (Slightly more glassy/translucent)
+     REMOVE GLASS PANELS (Transparent Main Container)
   ══════════════════════════════════════════════════════════════════════ */
   .main .block-container {
-      background: rgba(10, 15, 35, 0.35) !important; /* Reduced opacity */
-      backdrop-filter: blur(12px) saturate(150%) !important; /* Reduced blur */
-      -webkit-backdrop-filter: blur(12px) saturate(150%) !important;
-      border-radius: 18px !important;
+      background: transparent !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      border: none !important;
+      box-shadow: none !important;
       padding: 2rem 2.5rem !important;
       margin-top: 0.5rem !important;
-      border: 1px solid rgba(150, 200, 255, 0.15) !important;
-      box-shadow:
-          0 8px 40px rgba(0,0,0,0.65),
-          inset 0 1px 0 rgba(255,255,255,0.1),
-          inset 0 -1px 0 rgba(0,0,0,0.40) !important;
   }
 
   /* ══════════════════════════════════════════════════════════════════════
-     GLASSMORPHISM — sidebar (FIXED VISIBILITY & Translucent)
+     REMOVE GLASS PANELS (Transparent Sidebar)
   ══════════════════════════════════════════════════════════════════════ */
   section[data-testid="stSidebar"] {
-      background: rgba(8, 12, 30, 0.45) !important; /* Reduced opacity */
-      backdrop-filter: blur(16px) saturate(160%) !important; /* Reduced blur */
-      -webkit-backdrop-filter: blur(16px) saturate(160%) !important;
-      border-right: 1px solid rgba(150, 200, 255, 0.12) !important;
-      box-shadow: 4px 0 30px rgba(0,0,0,0.65) !important;
+      background: transparent !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      border: none !important;
+      border-right: 1px solid rgba(255, 255, 255, 0.08) !important; /* Tiny subtle separator line */
+      box-shadow: none !important;
       min-width: 265px !important;
       max-width: 320px !important;
       transform: none !important;
