@@ -63,7 +63,7 @@ C_ANNO   = "#ffe66d"
 # =============================================================================
 
 # HD Cosmic Wallpaper Direct URL (Guaranteed to load on Streamlit Cloud)
-COSMIC_BG_URL = "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f41?ixlib=rb-4.0.3&auto=format&fit=crop&w=2560&q=80"
+COSMIC_BG_URL = "https://svs.gsfc.nasa.gov/vis/a010000/a014800/a014866/NGC_1929_from_Spitzer_Chandra_ESO_desktop.png"
 
 st.markdown(f"""
 <style>
