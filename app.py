@@ -889,6 +889,283 @@ def estimate_planet_radius_earth(transit_depth: float,
     return rp_over_rs * star_radius_solar * SOLAR_TO_EARTH_RADII
 
 
+# =============================================================================
+# HABITABILITY INDEX CALCULATOR  —  Goldilocks / Circumstellar HZ
+# =============================================================================
+
+def calculate_habitability_index(
+    semi_major_axis_au: float,
+    star_luminosity_solar: float,
+    planet_radius_earth: float  = 1.0,
+    planet_mass_earth:   float  = 1.0,
+) -> dict:
+    """
+    Compute a multi-factor Habitability Index (HI, 0–100) based on:
+
+      1. Goldilocks Zone position  — Kopparapu et al. (2013/2014) flux limits
+      2. Planet size bonus/penalty — rocky sub-Neptune sweet spot
+      3. Orbital stability factor — circular-orbit penalty for extreme radii
+
+    Parameters
+    ----------
+    semi_major_axis_au    : orbital semi-major axis in AU
+    star_luminosity_solar : stellar luminosity in units of L☉
+    planet_radius_earth   : planet radius in R⊕  (default 1.0)
+    planet_mass_earth     : planet mass   in M⊕  (default 1.0)
+
+    Returns
+    -------
+    dict with keys
+        hi              : float  0–100 Habitability Index
+        hz_inner_au     : float  inner HZ boundary (AU)
+        hz_outer_au     : float  outer HZ boundary (AU)
+        hz_opt_inner_au : float  optimistic inner edge (Venus-runaway)
+        hz_opt_outer_au : float  optimistic outer edge (maximum greenhouse)
+        flux_ratio      : float  stellar flux at planet / Earth's flux
+        zone_label      : str    "Scorched", "Hot Edge", "Green Zone",
+                                 "Cool Edge", "Frozen", "Deep Freeze"
+        zone_color      : str    hex colour for UI
+        zone_emoji      : str    emoji symbol
+        score_breakdown : dict   sub-scores for each factor
+        description     : str    science narrative
+    """
+
+    # ── Kopparapu et al. (2013) flux limits ─────────────────────────────────
+    # Empirical coefficients for Sun-like star effective stellar flux (S_eff)
+    # Conservative HZ:   runaway greenhouse → maximum greenhouse
+    # Optimistic HZ:     recent Venus       → early Mars
+
+    # Effective stellar flux at planet (Earth = 1.0)
+    flux_ratio = star_luminosity_solar / (semi_major_axis_au ** 2)
+
+    # Conservative boundaries in terms of S_eff (referenced to Earth = 1.0)
+    S_inner_conservative = 1.107   # Runaway Greenhouse
+    S_outer_conservative = 0.356   # Maximum Greenhouse
+
+    # Optimistic boundaries
+    S_inner_optimistic   = 1.776   # Recent Venus
+    S_outer_optimistic   = 0.320   # Early Mars
+
+    # Convert S_eff boundaries → AU for this star
+    hz_inner_au     = float(np.sqrt(star_luminosity_solar / S_inner_conservative))
+    hz_outer_au     = float(np.sqrt(star_luminosity_solar / S_outer_conservative))
+    hz_opt_inner_au = float(np.sqrt(star_luminosity_solar / S_inner_optimistic))
+    hz_opt_outer_au = float(np.sqrt(star_luminosity_solar / S_outer_optimistic))
+
+    # ── Zone classification ──────────────────────────────────────────────────
+    if flux_ratio > S_inner_optimistic:
+        zone_label = "Scorched"
+        zone_color = "#ff2200"
+        zone_emoji = "🔥"
+        hz_score   = 0.0
+
+    elif flux_ratio > S_inner_conservative:
+        # Between optimistic and conservative inner edge → hot but possible
+        t = (flux_ratio - S_inner_conservative) / (S_inner_optimistic - S_inner_conservative)
+        hz_score   = 25.0 * (1.0 - t)
+        zone_label = "Hot Edge"
+        zone_color = "#ff8800"
+        zone_emoji = "☀️"
+
+    elif flux_ratio >= S_outer_conservative:
+        # Inside the conservative HZ — full score, peak at Earth-like ~1.0
+        # Gaussian centred on flux_ratio = 0.75 (Earth's optimum)
+        centre    = 0.75
+        sigma_hz  = 0.25
+        hz_score  = 55.0 * np.exp(-0.5 * ((flux_ratio - centre) / sigma_hz) ** 2) + 45.0
+        zone_label = "Green Zone  🌿"
+        zone_color = "#00ff88"
+        zone_emoji = "🌿"
+
+    elif flux_ratio >= S_outer_optimistic:
+        # Between conservative and optimistic outer edge → cold but possible
+        t = (S_outer_conservative - flux_ratio) / (S_outer_conservative - S_outer_optimistic)
+        hz_score   = 25.0 * (1.0 - t)
+        zone_label = "Cool Edge"
+        zone_color = "#4488ff"
+        zone_emoji = "❄️"
+
+    else:
+        zone_label = "Frozen"
+        zone_color = "#aaccff"
+        zone_emoji = "🧊"
+        hz_score   = 0.0
+
+    # ── Planet size factor (0–20 pts) ───────────────────────────────────────
+    # Peak at 1.0–1.5 R⊕; drops off outside 0.5–2.5 R⊕
+    r = planet_radius_earth
+    if 0.5 <= r <= 2.5:
+        size_score = 20.0 * np.exp(-0.5 * ((r - 1.2) / 0.8) ** 2)
+    elif r < 0.5:
+        size_score = 5.0 * (r / 0.5)
+    else:
+        # Larger → less habitable (sub-Neptune → gas mini-Neptune)
+        size_score = max(0.0, 20.0 - (r - 2.5) * 8.0)
+    size_score = float(np.clip(size_score, 0.0, 20.0))
+
+    # ── Orbital stability factor (0–10 pts) ─────────────────────────────────
+    # Penalty for very tight (tidal lock risk) or very wide orbits
+    if   semi_major_axis_au < 0.05:
+        orbital_score = 2.0
+    elif semi_major_axis_au < 0.15:
+        orbital_score = 7.0
+    elif semi_major_axis_au < 5.0:
+        orbital_score = 10.0
+    else:
+        orbital_score = max(0.0, 10.0 - (semi_major_axis_au - 5.0) * 1.5)
+    orbital_score = float(np.clip(orbital_score, 0.0, 10.0))
+
+    # ── Total HI ────────────────────────────────────────────────────────────
+    # hz_score (0–100) is weighted 70 %, size 20 %, orbital 10 %
+    hi = float(np.clip(
+        0.70 * hz_score + size_score + orbital_score,
+        0.0, 100.0
+    ))
+
+    # ── Narrative ───────────────────────────────────────────────────────────
+    narratives = {
+        "Scorched"  : "Far too close to the host star. Runaway greenhouse is inevitable; "
+                      "surface liquid water is impossible.",
+        "Hot Edge"  : "Inside the optimistic inner HZ. Surface conditions may permit water "
+                      "transiently under high atmospheric pressure (Venus analogue).",
+        "Green Zone  🌿" : "Inside the conservative Habitable Zone. Stellar flux allows "
+                      "liquid water on the surface. Prime target for atmospheric follow-up.",
+        "Cool Edge" : "Between conservative and optimistic outer edges. "
+                      "CO₂-rich greenhouse may keep surface above freezing.",
+        "Frozen"    : "Beyond the outer HZ boundary. Maximum greenhouse effect is "
+                      "insufficient; surface water permanently frozen.",
+    }
+    description = narratives.get(zone_label,
+        "Deep-freeze regime — far beyond the star's influence on habitability.")
+
+    return {
+        "hi"              : round(hi, 1),
+        "hz_inner_au"     : round(hz_inner_au,     4),
+        "hz_outer_au"     : round(hz_outer_au,     4),
+        "hz_opt_inner_au" : round(hz_opt_inner_au, 4),
+        "hz_opt_outer_au" : round(hz_opt_outer_au, 4),
+        "flux_ratio"      : round(flux_ratio,       4),
+        "zone_label"      : zone_label.replace("  🌿", ""),
+        "zone_color"      : zone_color,
+        "zone_emoji"      : zone_emoji,
+        "score_breakdown" : {
+            "hz_position" : round(0.70 * hz_score, 1),
+            "planet_size" : round(size_score,       1),
+            "orbital"     : round(orbital_score,    1),
+        },
+        "description"     : description,
+    }
+
+
+def plot_goldilocks_zone(
+    hz_result:          dict,
+    semi_major_axis_au: float,
+    star_luminosity_solar: float,
+    planet_name:        str = "Detected Planet",
+) -> "plt.Figure":
+    """
+    Render a publication-style Goldilocks Zone diagram showing:
+      • Temperature gradient background (hot → cold)
+      • Optimistic HZ band (warm amber)
+      • Conservative HZ band (bright green)
+      • Planet marker + Earth reference
+      • Solar system reference planets (Mercury→Mars)
+      • Annotated HZ boundaries
+    """
+    fig, ax = make_fig(h=4.2)
+
+    r     = hz_result
+    a_max = max(r["hz_opt_outer_au"] * 1.55, semi_major_axis_au * 1.25, 0.25)
+    a_min = max(0.0, min(r["hz_opt_inner_au"] * 0.38, semi_major_axis_au * 0.55, 0.04))
+
+    x = np.linspace(a_min, a_max, 800)
+
+    # ── Temperature-gradient background ─────────────────────────────────────
+    flux_x = star_luminosity_solar / (x ** 2)
+    # Normalise flux to 0-1 for colour mapping (log scale)
+    log_flux = np.log10(np.clip(flux_x, 0.01, 1000))
+    log_min, log_max = np.log10(0.01), np.log10(1000)
+    norm_flux = (log_flux - log_min) / (log_max - log_min)
+
+    for i in range(len(x) - 1):
+        v = float(norm_flux[i])
+        if v > 0.75:
+            c = (0.9, 0.2 * (1 - v), 0.0, 0.28)
+        elif v > 0.45:
+            c = (0.9 * v, 0.5 * v, 0.1, 0.22)
+        else:
+            c = (0.05, 0.15 + 0.4 * v, 0.55 + 0.35 * (1 - v), 0.28)
+        ax.axvspan(x[i], x[i + 1], color=c, linewidth=0)
+
+    # ── Zone bands ──────────────────────────────────────────────────────────
+    ax.axvspan(r["hz_opt_inner_au"], r["hz_opt_outer_au"],
+               color="#ffd04488", alpha=0.35, label="Optimistic HZ", zorder=2)
+    ax.axvspan(r["hz_inner_au"], r["hz_outer_au"],
+               color="#00ff8866", alpha=0.50, label="Conservative HZ", zorder=3)
+
+    # Boundary lines
+    for val, ls, col in [
+        (r["hz_opt_inner_au"],  ":",  "#ffaa22"),
+        (r["hz_inner_au"],      "--", "#88ffaa"),
+        (r["hz_outer_au"],      "--", "#88ffaa"),
+        (r["hz_opt_outer_au"],  ":",  "#4488ff"),
+    ]:
+        ax.axvline(val, color=col, lw=1.0, ls=ls, alpha=0.70, zorder=4)
+
+    # Boundary labels (top of axes)
+    labels_top = [
+        (r["hz_opt_inner_au"],  "Opt.\nInner",  "#ffaa22", "right"),
+        (r["hz_inner_au"],      "HZ\nInner",    "#88ffaa", "right"),
+        (r["hz_outer_au"],      "HZ\nOuter",    "#88ffaa", "left"),
+        (r["hz_opt_outer_au"],  "Opt.\nOuter",  "#4488ff", "left"),
+    ]
+    for xv, lbl, col, ha in labels_top:
+        if a_min < xv < a_max:
+            ax.text(xv, 0.97, lbl, transform=ax.get_xaxis_transform(),
+                    color=col, fontsize=6.5, ha=ha, va="top",
+                    fontfamily="monospace", alpha=0.85)
+
+    # ── Reference planets ───────────────────────────────────────────────────
+    sol_planets = [
+        (0.387, "☿", "#aaaaaa"),
+        (0.723, "♀", "#ffcc66"),
+        (1.000, "⊕", "#4a9eff"),
+        (1.524, "♂", "#ff6644"),
+    ]
+    for d_au, sym, col in sol_planets:
+        if a_min < d_au < a_max:
+            ax.scatter(d_au, 0.5, s=70, color=col, zorder=6, alpha=0.65)
+            ax.text(d_au, 0.56, sym, color=col, ha="center", fontsize=9,
+                    transform=ax.get_xaxis_transform(), zorder=7, alpha=0.80)
+
+    # ── Planet marker ────────────────────────────────────────────────────────
+    pcolor = hz_result["zone_color"]
+    ax.scatter(semi_major_axis_au, 0.5, s=200, color=pcolor,
+               zorder=10, edgecolors="white", linewidths=1.2,
+               transform=ax.get_xaxis_transform())
+    ax.text(semi_major_axis_au, 0.38,
+            f"{hz_result['zone_emoji']}  {semi_major_axis_au:.3f} AU",
+            color=pcolor, ha="center", fontsize=8, fontweight="bold",
+            transform=ax.get_xaxis_transform(), zorder=11,
+            bbox=dict(boxstyle="round,pad=0.28", facecolor="#03060f",
+                      edgecolor=pcolor, alpha=0.88))
+
+    # ── Cosmetics ────────────────────────────────────────────────────────────
+    ax.set_xlim(a_min, a_max)
+    ax.set_ylim(0, 1)
+    ax.set_xlabel("Orbital Distance  [AU]", color=C_TICK, fontsize=9.5)
+    ax.yaxis.set_visible(False)
+    ax.set_title(
+        f"Goldilocks Zone  ·  L★ = {star_luminosity_solar:.3f} L☉  "
+        f"·  Flux = {hz_result['flux_ratio']:.3f} S⊕",
+        color=C_TICK, fontsize=9, loc="left", pad=6,
+    )
+    ax.legend(loc="upper right", fontsize=8, framealpha=0.30,
+              facecolor=BG_PANEL, edgecolor="#00aacc", labelcolor="white")
+    fig.tight_layout(pad=1.5)
+    return fig
+
+
 def phase_fold_arrays(clean_time, clean_flux, clean_ferr, period, t0):
     """Phase-fold and bin. Uses astropy.time.Time directly (lk.time.Time doesn't exist)."""
     lc_tmp = lk.LightCurve(
@@ -1142,6 +1419,44 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
+    st.markdown('<div class="sidebar-label" style="margin-top:10px;">💡 STELLAR LUMINOSITY</div>',
+                unsafe_allow_html=True)
+    star_luminosity_solar = st.number_input(
+        "star_lum_input",
+        min_value=0.0001, max_value=1_000_000.0, value=1.0, step=0.1,
+        format="%.4f",
+        label_visibility="collapsed",
+        help="Host star luminosity in solar units (L☉). Sun = 1.0. "
+             "Red dwarfs ≈ 0.001–0.08; F-type ≈ 2–5; giants > 100.",
+    )
+    st.markdown(
+        "<div style='font-size:0.67rem;color:#00ccaa;margin-top:-4px;margin-bottom:6px;'>"
+        f"L★ = <span style='color:#00ffff'>{star_luminosity_solar:.4f} L☉</span>"
+        " &nbsp;·&nbsp; Sun = 1.0000</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="sidebar-label" style="margin-top:10px;">🪐 SEMI-MAJOR AXIS</div>',
+                unsafe_allow_html=True)
+    semi_major_axis_au = st.number_input(
+        "sma_input",
+        min_value=0.001, max_value=500.0, value=1.0, step=0.01,
+        format="%.4f",
+        label_visibility="collapsed",
+        help="Orbital semi-major axis in Astronomical Units (AU). "
+             "Earth = 1.0 AU. Derived from BLS period via Kepler's 3rd law if left at default.",
+    )
+    _sma_note = (
+        "Set manually or use Kepler's 3rd law estimate below"
+        if semi_major_axis_au == 1.0
+        else f"a = <span style='color:#00ffff'>{semi_major_axis_au:.4f} AU</span>"
+    )
+    st.markdown(
+        f"<div style='font-size:0.67rem;color:#00ccaa;margin-top:-4px;margin-bottom:6px;'>"
+        f"{_sma_note} &nbsp;·&nbsp; Earth = 1.0000 AU</div>",
+        unsafe_allow_html=True,
+    )
+
     st.markdown("---")
     st.markdown("""
     <div style='font-size:0.71rem;color:#00ccaa;line-height:2.0;'>
@@ -1344,8 +1659,156 @@ with _comp_col3:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
+# ── Habitability Index ────────────────────────────────────────────────────────
+# Kepler's 3rd law: a (AU) = (P_days / 365.25)^(2/3) * M_star^(1/3)
+# We assume M_star ≈ L_star^0.25 (main-sequence mass–luminosity relation)
+_star_mass_solar = star_luminosity_solar ** 0.25
+_sma_kepler_au   = (best_period / 365.25) ** (2.0 / 3.0) * _star_mass_solar ** (1.0 / 3.0)
+
+# If the user left the default (1.0 AU) use the BLS-derived estimate
+_effective_sma = semi_major_axis_au if abs(semi_major_axis_au - 1.0) > 0.001 \
+                 else _sma_kepler_au
+
+_hz = calculate_habitability_index(
+    semi_major_axis_au    = _effective_sma,
+    star_luminosity_solar = star_luminosity_solar,
+    planet_radius_earth   = _planet_radius_earth,
+    planet_mass_earth     = planet_mass_earth,
+)
+
+st.markdown('<div class="section-header animate-in delay-2">🌿  HABITABILITY INDEX  —  GOLDILOCKS ZONE ANALYSIS</div>',
+            unsafe_allow_html=True)
+
+# ── HI score gauge + zone card ───────────────────────────────────────────────
+_hi_col1, _hi_col2, _hi_col3, _hi_col4 = st.columns([1.0, 1.0, 1.0, 1.8])
+
+_hz_color = _hz["zone_color"]
+_hi_val   = _hz["hi"]
+
+# Score tier label
+if _hi_val >= 70:
+    _tier_label, _tier_color = "POTENTIALLY HABITABLE", "#00ff88"
+elif _hi_val >= 40:
+    _tier_label, _tier_color = "MARGINAL CONDITIONS", "#ffd044"
+elif _hi_val >= 15:
+    _tier_label, _tier_color = "UNLIKELY HABITABLE", "#ff8800"
+else:
+    _tier_label, _tier_color = "NOT HABITABLE", "#ff3300"
+
+# Build a simple bar as an inline SVG progress gauge
+_bar_pct   = int(_hi_val)
+_bar_color = _hz_color
+
+with _hi_col1:
+    st.markdown(f"""
+    <div class="stat-card glass-in delay-2" style="border-color:{_hz_color}88;">
+      <div class="stat-label">HABITABILITY INDEX</div>
+      <div style="font-family:'Space Mono',monospace;font-size:2.1rem;font-weight:700;
+                  color:{_hz_color};text-shadow:0 0 22px {_hz_color}99;line-height:1.1;
+                  margin-top:4px;">
+        {_hi_val:.1f}<span style="font-size:1rem;color:#00ccaa;"> / 100</span>
+      </div>
+      <!-- progress bar -->
+      <div style="margin-top:8px;background:rgba(255,255,255,0.07);
+                  border-radius:4px;height:6px;overflow:hidden;">
+        <div style="width:{_bar_pct}%;height:100%;background:linear-gradient(90deg,
+             {_bar_color},{_bar_color}cc);border-radius:4px;
+             box-shadow:0 0 8px {_bar_color}88;transition:width 0.8s ease;"></div>
+      </div>
+      <div style="font-size:0.64rem;color:{_tier_color};margin-top:5px;
+                  font-family:'Space Mono',monospace;letter-spacing:0.08em;">
+        {_tier_label}
+      </div>
+    </div>""", unsafe_allow_html=True)
+
+with _hi_col2:
+    st.markdown(f"""
+    <div class="stat-card glass-in delay-2">
+      <div class="stat-label">ZONE CLASSIFICATION</div>
+      <div style="font-family:'Space Mono',monospace;font-size:1.15rem;font-weight:700;
+                  color:{_hz_color};text-shadow:0 0 16px {_hz_color}88;margin-top:5px;">
+        {_hz['zone_emoji']}  {_hz['zone_label']}
+      </div>
+      <div style="font-size:0.68rem;color:#00ccaa;margin-top:6px;
+                  font-family:'Space Mono',monospace;">
+        a = {_effective_sma:.4f} AU<br>
+        Flux = {_hz['flux_ratio']:.3f} S⊕
+      </div>
+    </div>""", unsafe_allow_html=True)
+
+with _hi_col3:
+    _sb = _hz["score_breakdown"]
+    st.markdown(f"""
+    <div class="stat-card glass-in delay-2">
+      <div class="stat-label">SCORE BREAKDOWN</div>
+      <div style="font-family:'Space Mono',monospace;font-size:0.70rem;
+                  line-height:2.0;color:#b0cce8;margin-top:5px;">
+        <span style="color:#00ffcc">HZ Position</span>
+        <span style="float:right;color:#e8f4ff">{_sb['hz_position']:.1f}</span><br>
+        <span style="color:#00ffcc">Planet Size</span>
+        <span style="float:right;color:#e8f4ff">{_sb['planet_size']:.1f}</span><br>
+        <span style="color:#00ffcc">Orbital Stability</span>
+        <span style="float:right;color:#e8f4ff">{_sb['orbital']:.1f}</span><br>
+        <div style="border-top:1px solid rgba(0,212,255,0.3);margin-top:3px;padding-top:3px;">
+          <span style="color:#00ffff;font-weight:700;">TOTAL</span>
+          <span style="float:right;color:{_hz_color};font-weight:700;">{_hi_val:.1f}</span>
+        </div>
+      </div>
+    </div>""", unsafe_allow_html=True)
+
+with _hi_col4:
+    st.markdown(f"""
+    <div class="stat-card glass-in delay-2" style="border-color:{_hz_color}44;">
+      <div class="stat-label">GOLDILOCKS ZONE BOUNDARIES</div>
+      <div style="font-family:'Space Mono',monospace;font-size:0.70rem;
+                  line-height:2.1;color:#b0cce8;margin-top:5px;">
+        <span style="color:#ffaa22">Opt. Inner (Recent Venus)</span>
+        <span style="float:right;color:#e8f4ff">{_hz['hz_opt_inner_au']:.4f} AU</span><br>
+        <span style="color:#88ffaa">Conservative Inner</span>
+        <span style="float:right;color:#e8f4ff">{_hz['hz_inner_au']:.4f} AU</span><br>
+        <span style="color:{_hz_color};font-weight:700">▶  Planet  ◀</span>
+        <span style="float:right;color:{_hz_color};font-weight:700">{_effective_sma:.4f} AU</span><br>
+        <span style="color:#88ffaa">Conservative Outer</span>
+        <span style="float:right;color:#e8f4ff">{_hz['hz_outer_au']:.4f} AU</span><br>
+        <span style="color:#4488ff">Opt. Outer (Early Mars)</span>
+        <span style="float:right;color:#e8f4ff">{_hz['hz_opt_outer_au']:.4f} AU</span>
+      </div>
+    </div>""", unsafe_allow_html=True)
+
+# ── Narrative description ─────────────────────────────────────────────────────
+st.markdown(f"""
+<div class='desc-text' style='margin-top:0.8rem;'>
+  <b style='color:{_hz_color}'>{_hz['zone_emoji']}  {_hz['zone_label']} </b> —
+  {_hz['description']}
+  &nbsp; <span style='color:#556677;font-size:0.72rem;'>
+    [ Kepler 3rd-law SMA estimate: {_sma_kepler_au:.4f} AU  ·
+    Star mass est: {_star_mass_solar:.3f} M☉  ·
+    Kopparapu et al. (2013) flux limits ]
+  </span>
+</div>""", unsafe_allow_html=True)
+
+# ── Goldilocks Zone plot ──────────────────────────────────────────────────────
+st.markdown('<div class="section-header animate-in delay-3">04 · GOLDILOCKS ZONE DIAGRAM</div>',
+            unsafe_allow_html=True)
+st.markdown(f"""<div class='desc-text'>
+  The <span style='color:#00ff88'>green band</span> is the Conservative Habitable Zone where liquid water
+  can exist on the surface.  The <span style='color:#ffd044'>amber band</span> is the Optimistic HZ (Recent Venus → Early Mars).
+  The <span style='color:{_hz_color}'>coloured dot</span> marks the detected planet at
+  <b style='color:#00ffff'>{_effective_sma:.4f} AU</b> receiving
+  <b style='color:#ffe66d'>{_hz['flux_ratio']:.3f}×</b> Earth's stellar flux.
+</div>""", unsafe_allow_html=True)
+
+with st.spinner("Rendering Goldilocks Zone diagram …"):
+    fig_gz = plot_goldilocks_zone(
+        hz_result           = _hz,
+        semi_major_axis_au  = _effective_sma,
+        star_luminosity_solar = star_luminosity_solar,
+        planet_name         = st.session_state.star_name,
+    )
+st.pyplot(fig_gz, use_container_width=True); plt.close(fig_gz)
+
 # ── Graph 1: Raw ──────────────────────────────────────────────────────────────
-st.markdown('<div class="section-header animate-in delay-2">01 · RAW LIGHT CURVE</div>',
+st.markdown('<div class="section-header animate-in delay-2">05 · RAW LIGHT CURVE</div>',
             unsafe_allow_html=True)
 st.markdown("""<div class='desc-text'>Raw stellar brightness over time.
 The <span style='color:#ff6b6b'>red curve</span> is the Savitzky-Golay stellar trend —
@@ -1355,7 +1818,7 @@ fig_raw = plot_raw(raw_t, raw_f, raw_fe, trend_t, trend_f)
 st.pyplot(fig_raw, use_container_width=True); plt.close(fig_raw)
 
 # ── Graph 2: Flat ─────────────────────────────────────────────────────────────
-st.markdown('<div class="section-header animate-in delay-2">02 · CLEANED &amp; FLATTENED LIGHT CURVE</div>',
+st.markdown('<div class="section-header animate-in delay-2">06 · CLEANED &amp; FLATTENED LIGHT CURVE</div>',
             unsafe_allow_html=True)
 st.markdown(f"""<div class='desc-text'>Top: stellar trend removed.
 Bottom: outlier spikes clipped. Noise floor ≈
@@ -1365,7 +1828,7 @@ fig_flat = plot_flat(flat_t, flat_f, clean_t, clean_f)
 st.pyplot(fig_flat, use_container_width=True); plt.close(fig_flat)
 
 # ── Graph 3: BLS ──────────────────────────────────────────────────────────────
-st.markdown('<div class="section-header animate-in delay-3">03 · BLS PERIODOGRAM &amp; PHASE-FOLDED TRANSIT</div>',
+st.markdown('<div class="section-header animate-in delay-3">07 · BLS PERIODOGRAM &amp; PHASE-FOLDED TRANSIT</div>',
             unsafe_allow_html=True)
 st.markdown(f"""<div class='desc-text'>BLS tested every period {BLS_MIN_PERIOD}–{BLS_MAX_PERIOD} d.
 Tallest spike = orbital period
