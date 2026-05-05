@@ -4,7 +4,7 @@
   app.py  [UPGRADED: Neon Space Mono + Ken Burns Zoom + Glassmorphism]
 ==============================================================================
 HOW TO RUN
-    pip install streamlit lightkurve astropy matplotlib numpy
+    pip install streamlit lightkurve astropy matplotlib numpy streamlit-searchbox
     streamlit run app.py
 ==============================================================================
 
@@ -16,6 +16,7 @@ NEW FEATURES:
 """
 
 import streamlit as st
+from streamlit_searchbox import st_searchbox
 
 # set_page_config MUST be the absolute first Streamlit call in the file
 st.set_page_config(
@@ -54,6 +55,7 @@ if "star_luminosity_solar" not in st.session_state: st.session_state.star_lumino
 if "semi_major_axis_au"   not in st.session_state: st.session_state.semi_major_axis_au   = 1.0
 if "nasa_synced_planet"   not in st.session_state: st.session_state.nasa_synced_planet   = ""
 if "nasa_sync_status"     not in st.session_state: st.session_state.nasa_sync_status     = None
+if "nasa_sync_fields"     not in st.session_state: st.session_state.nasa_sync_fields     = []
 
 # =============================================================================
 # NASA EXOPLANET ARCHIVE — TAP Service Integration
@@ -115,6 +117,43 @@ def fetch_nasa_exoplanet_data(planet_name: str) -> dict | None:
     except Exception:
         return None
 
+
+# =============================================================================
+# NASA PLANET NAME AUTOCOMPLETE
+# =============================================================================
+
+@st.cache_data(show_spinner=False, ttl=86400)          # refresh once per day
+def fetch_all_planet_names() -> list[str]:
+    """
+    Download every confirmed planet name from the NASA Exoplanet Archive ps table.
+    Returns a sorted list of canonical names, e.g. ['CoRoT-1 b', 'GJ 436 b', ...].
+    Falls back to an empty list on network failure.
+    """
+    adql = "SELECT pl_name FROM ps WHERE pl_name IS NOT NULL"
+    try:
+        resp = requests.get(
+            NASA_TAP_URL,
+            params={"query": adql, "format": "json"},
+            timeout=20,
+        )
+        resp.raise_for_status()
+        rows = resp.json()
+        names = sorted({r["pl_name"].strip() for r in rows if r.get("pl_name")})
+        return names
+    except Exception:
+        return []
+
+
+def search_planets(query: str) -> list[str]:
+    """
+    Case-insensitive, whitespace-tolerant filter over all NASA planet names.
+    Returns up to 12 suggestions that contain the query substring.
+    """
+    q = query.strip().lower()
+    if not q:
+        return []
+    all_names = fetch_all_planet_names()
+    return [n for n in all_names if q in n.lower()][:12]
 
 # ── Astrophysics constants ────────────────────────────────────────────────────
 BLS_MIN_PERIOD   = 0.5
@@ -2249,15 +2288,22 @@ if not st.session_state.search_btn:
 </div>""", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    _entered_name = st.text_input(
-        "star_input",
-        value=st.session_state.star_name,
-        placeholder="> ENTER_STAR_DESIGNATION (e.g. Kepler-10 b, TRAPPIST-1 e)",
-        label_visibility="collapsed",
+
+    _selected_name = st_searchbox(
+        search_planets,
+        key="planet_searchbox",
+        placeholder="🔭  Search planet — e.g. Kepler-442 b, TRAPPIST-1 e …",
+        default=st.session_state.star_name,
+        clear_on_submit=False,
+        style_overrides={
+            "menu_margin_top": "4px",
+        },
     )
-    # If user changed the name, update state and clear old sync status
-    if _entered_name != st.session_state.star_name:
-        st.session_state.star_name = _entered_name
+
+    # When user picks a suggestion (or types a name and blurs), update state & sync
+    if _selected_name and _selected_name.strip() != st.session_state.star_name:
+        _clean = _selected_name.strip()
+        st.session_state.star_name = _clean
         st.session_state.nasa_sync_status = None
         st.session_state.nasa_synced_planet = ""
         st.rerun()
