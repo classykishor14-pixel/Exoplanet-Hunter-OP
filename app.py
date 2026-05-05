@@ -27,6 +27,7 @@ st.set_page_config(
 
 import warnings
 import shutil
+import requests
 from pathlib import Path
 
 import numpy as np
@@ -41,6 +42,67 @@ from astropy.time import Time as AstropyTime
 import astropy.units as u
 
 warnings.filterwarnings("ignore")
+
+# =============================================================================
+# NASA EXOPLANET ARCHIVE — TAP Service Integration
+# =============================================================================
+
+NASA_TAP_URL = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync"
+
+@st.cache_data(show_spinner=False, ttl=3600)
+def fetch_nasa_exoplanet_data(planet_name: str) -> dict | None:
+    """
+    Query the NASA Exoplanet Archive TAP service for a specific planet.
+
+    Parameters
+    ----------
+    planet_name : str
+        Exact planet designation, e.g. 'Kepler-10 b', 'TRAPPIST-1 e'.
+        The query is case-insensitive and strips extra whitespace.
+
+    Returns
+    -------
+    dict with keys:
+        pl_name   : str   — planet name
+        pl_rade   : float — planet radius  [Earth radii]
+        pl_masse  : float — planet mass    [Earth masses]
+        st_rad    : float — stellar radius [Solar radii]
+        st_lum    : float — stellar lum.   [log Solar; converted to linear]
+        pl_orbsmax: float — semi-major axis [AU]
+    or None if not found / network error.
+    """
+    adql = (
+        "SELECT pl_name, pl_rade, pl_masse, st_rad, st_lum, pl_orbsmax "
+        "FROM ps "
+        f"WHERE LOWER(pl_name) = LOWER('{planet_name.strip()}') "
+        "AND pl_rade IS NOT NULL "
+        "ORDER BY pl_rade DESC"
+    )
+    try:
+        resp = requests.get(
+            NASA_TAP_URL,
+            params={"query": adql, "format": "json"},
+            timeout=12,
+        )
+        resp.raise_for_status()
+        rows = resp.json()
+        if not rows:
+            return None
+        row = rows[0]
+        # st_lum is stored as log10(L/L☉); convert to linear
+        st_lum_log = row.get("st_lum")
+        st_lum_linear = (10 ** float(st_lum_log)) if st_lum_log is not None else None
+        return {
+            "pl_name"    : row.get("pl_name"),
+            "pl_rade"    : float(row["pl_rade"]) if row.get("pl_rade") is not None else None,
+            "pl_masse"   : float(row["pl_masse"]) if row.get("pl_masse") is not None else None,
+            "st_rad"     : float(row["st_rad"]) if row.get("st_rad") is not None else None,
+            "st_lum"     : st_lum_linear,
+            "pl_orbsmax" : float(row["pl_orbsmax"]) if row.get("pl_orbsmax") is not None else None,
+        }
+    except Exception:
+        return None
+
 
 # ── Astrophysics constants ────────────────────────────────────────────────────
 BLS_MIN_PERIOD   = 0.5
@@ -1974,11 +2036,14 @@ with st.sidebar:
     st.markdown('<div class="sidebar-label">🌟 HOST STAR RADIUS</div>', unsafe_allow_html=True)
     star_radius_solar = st.number_input(
         "star_radius_input",
-        min_value=0.1, max_value=100.0, value=1.0, step=0.05,
+        min_value=0.1, max_value=100.0,
+        value=float(st.session_state.star_radius_solar),
+        step=0.05,
         format="%.2f",
         label_visibility="collapsed",
         help="Host star radius in solar radii — used to convert transit depth → planet radius.",
     )
+    st.session_state.star_radius_solar = star_radius_solar
     st.markdown(
         "<div style='font-size:0.67rem;color:#00ccaa;margin-top:-4px;margin-bottom:6px;'>"
         f"R★ = <span style='color:#00ffff'>{star_radius_solar:.2f} R☉</span>"
@@ -1990,11 +2055,14 @@ with st.sidebar:
                 unsafe_allow_html=True)
     planet_mass_earth = st.number_input(
         "planet_mass_input",
-        min_value=0.01, max_value=5000.0, value=1.0, step=0.5,
+        min_value=0.01, max_value=5000.0,
+        value=float(st.session_state.planet_mass_earth),
+        step=0.5,
         format="%.2f",
         label_visibility="collapsed",
         help="Planet mass in Earth masses (M⊕). Use radial-velocity or TTV data, or keep default for a rough estimate.",
     )
+    st.session_state.planet_mass_earth = planet_mass_earth
     st.markdown(
         "<div style='font-size:0.67rem;color:#00ccaa;margin-top:-4px;margin-bottom:6px;'>"
         f"M = <span style='color:#00ffff'>{planet_mass_earth:.2f} M⊕</span>"
@@ -2006,12 +2074,15 @@ with st.sidebar:
                 unsafe_allow_html=True)
     star_luminosity_solar = st.number_input(
         "star_lum_input",
-        min_value=0.0001, max_value=1_000_000.0, value=1.0, step=0.1,
+        min_value=0.0001, max_value=1_000_000.0,
+        value=float(st.session_state.star_luminosity_solar),
+        step=0.1,
         format="%.4f",
         label_visibility="collapsed",
         help="Host star luminosity in solar units (L☉). Sun = 1.0. "
              "Red dwarfs ≈ 0.001–0.08; F-type ≈ 2–5; giants > 100.",
     )
+    st.session_state.star_luminosity_solar = star_luminosity_solar
     st.markdown(
         "<div style='font-size:0.67rem;color:#00ccaa;margin-top:-4px;margin-bottom:6px;'>"
         f"L★ = <span style='color:#00ffff'>{star_luminosity_solar:.4f} L☉</span>"
@@ -2023,12 +2094,15 @@ with st.sidebar:
                 unsafe_allow_html=True)
     semi_major_axis_au = st.number_input(
         "sma_input",
-        min_value=0.001, max_value=500.0, value=1.0, step=0.01,
+        min_value=0.001, max_value=500.0,
+        value=float(st.session_state.semi_major_axis_au),
+        step=0.01,
         format="%.4f",
         label_visibility="collapsed",
         help="Orbital semi-major axis in Astronomical Units (AU). "
              "Earth = 1.0 AU. Derived from BLS period via Kepler's 3rd law if left at default.",
     )
+    st.session_state.semi_major_axis_au = semi_major_axis_au
     _sma_note = (
         "Set manually or use Kepler's 3rd law estimate below"
         if semi_major_axis_au == 1.0
@@ -2039,6 +2113,35 @@ with st.sidebar:
         f"{_sma_note} &nbsp;·&nbsp; Earth = 1.0000 AU</div>",
         unsafe_allow_html=True,
     )
+
+    # ── NASA Sync Status Badge ────────────────────────────────────────────────
+    _sync = st.session_state.nasa_sync_status
+    if _sync == "ok":
+        _fields = " · ".join(getattr(st.session_state, "nasa_sync_fields", []))
+        st.markdown(f"""
+<div style='margin-top:10px;padding:8px 12px;border-radius:8px;
+            background:rgba(0,255,136,0.08);border:1px solid rgba(0,255,136,0.35);
+            font-family:Space Mono,monospace;font-size:0.63rem;color:#00ff88;'>
+  ✅ NASA LIVE DATA<br>
+  <span style='color:#88ffcc;'>{_fields}</span>
+</div>""", unsafe_allow_html=True)
+    elif _sync == "partial":
+        _fields = " · ".join(getattr(st.session_state, "nasa_sync_fields", []))
+        st.markdown(f"""
+<div style='margin-top:10px;padding:8px 12px;border-radius:8px;
+            background:rgba(255,208,0,0.08);border:1px solid rgba(255,208,0,0.35);
+            font-family:Space Mono,monospace;font-size:0.63rem;color:#ffd044;'>
+  ⚡ PARTIAL NASA DATA<br>
+  <span style='color:#ffe88a;'>{_fields} synced</span>
+</div>""", unsafe_allow_html=True)
+    elif _sync == "not_found":
+        st.markdown("""
+<div style='margin-top:10px;padding:8px 12px;border-radius:8px;
+            background:rgba(255,60,60,0.08);border:1px solid rgba(255,60,60,0.32);
+            font-family:Space Mono,monospace;font-size:0.63rem;color:#ff6060;'>
+  ⚠️ NOT IN NASA ARCHIVE<br>
+  <span style='color:#ffaaaa;'>Sliders unchanged</span>
+</div>""", unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown("""
@@ -2070,8 +2173,55 @@ with st.sidebar:
 # =============================================================================
 # SESSION STATE
 # =============================================================================
-if "search_btn"  not in st.session_state: st.session_state.search_btn  = False
-if "star_name"   not in st.session_state: st.session_state.star_name   = "Kepler-10"
+if "search_btn"        not in st.session_state: st.session_state.search_btn        = False
+if "star_name"         not in st.session_state: st.session_state.star_name         = "Kepler-10"
+# Sidebar physics sliders — populated by NASA API or kept at user-set values
+if "star_radius_solar"    not in st.session_state: st.session_state.star_radius_solar    = 1.0
+if "planet_mass_earth"    not in st.session_state: st.session_state.planet_mass_earth    = 1.0
+if "star_luminosity_solar" not in st.session_state: st.session_state.star_luminosity_solar = 1.0
+if "semi_major_axis_au"   not in st.session_state: st.session_state.semi_major_axis_au   = 1.0
+# Track which planet was last synced so we don't re-query on every rerun
+if "nasa_synced_planet" not in st.session_state: st.session_state.nasa_synced_planet = ""
+if "nasa_sync_status"   not in st.session_state: st.session_state.nasa_sync_status   = None  # None | "ok" | "not_found" | "partial"
+
+
+
+# =============================================================================
+# NASA API AUTO-SYNC  — fires once per new planet name
+# =============================================================================
+def _try_nasa_sync(planet_name: str):
+    """
+    Query NASA Exoplanet Archive for `planet_name` and update session-state
+    sliders in-place.  Records sync status for the UI banner.
+    """
+    data = fetch_nasa_exoplanet_data(planet_name)
+    if data is None:
+        st.session_state.nasa_sync_status = "not_found"
+        return
+
+    updated = []
+    if data["st_rad"] is not None:
+        st.session_state.star_radius_solar    = float(np.clip(data["st_rad"], 0.1, 100.0))
+        updated.append("R★")
+    if data["pl_masse"] is not None:
+        st.session_state.planet_mass_earth    = float(np.clip(data["pl_masse"], 0.01, 5000.0))
+        updated.append("M♁")
+    if data["st_lum"] is not None:
+        st.session_state.star_luminosity_solar = float(np.clip(data["st_lum"], 0.0001, 1_000_000.0))
+        updated.append("L★")
+    if data["pl_orbsmax"] is not None:
+        st.session_state.semi_major_axis_au   = float(np.clip(data["pl_orbsmax"], 0.001, 500.0))
+        updated.append("SMA")
+
+    st.session_state.nasa_sync_status = "ok" if len(updated) == 4 else "partial"
+    st.session_state.nasa_sync_fields = updated
+
+
+# Trigger sync whenever the star name changes (landing screen or results)
+_current_name = st.session_state.star_name.strip()
+if _current_name and _current_name != st.session_state.nasa_synced_planet:
+    _try_nasa_sync(_current_name)
+    st.session_state.nasa_synced_planet = _current_name
 
 
 # =============================================================================
@@ -2099,12 +2249,49 @@ if not st.session_state.search_btn:
 </div>""", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.session_state.star_name = st.text_input(
+    _entered_name = st.text_input(
         "star_input",
         value=st.session_state.star_name,
-        placeholder="> ENTER_STAR_DESIGNATION (e.g. Kepler-10, TRAPPIST-1)",
+        placeholder="> ENTER_STAR_DESIGNATION (e.g. Kepler-10 b, TRAPPIST-1 e)",
         label_visibility="collapsed",
     )
+    # If user changed the name, update state and clear old sync status
+    if _entered_name != st.session_state.star_name:
+        st.session_state.star_name = _entered_name
+        st.session_state.nasa_sync_status = None
+        st.session_state.nasa_synced_planet = ""
+        st.rerun()
+
+    # NASA sync status feedback on landing page
+    _sync = st.session_state.nasa_sync_status
+    if _sync == "ok":
+        _fields = " · ".join(getattr(st.session_state, "nasa_sync_fields", []))
+        st.markdown(f"""
+<div style='margin:-4px 0 14px;padding:9px 14px;border-radius:8px;
+            background:rgba(0,255,136,0.07);border:1px solid rgba(0,255,136,0.32);
+            font-family:Space Mono,monospace;font-size:0.68rem;color:#00ff88;'>
+  ✅ &nbsp;NASA LIVE DATA LOADED — sliders synced with real archive values<br>
+  <span style='color:#88ffcc;font-size:0.60rem;'>Updated: {_fields}</span>
+</div>""", unsafe_allow_html=True)
+    elif _sync == "partial":
+        _fields = " · ".join(getattr(st.session_state, "nasa_sync_fields", []))
+        st.markdown(f"""
+<div style='margin:-4px 0 14px;padding:9px 14px;border-radius:8px;
+            background:rgba(255,208,0,0.07);border:1px solid rgba(255,208,0,0.32);
+            font-family:Space Mono,monospace;font-size:0.68rem;color:#ffd044;'>
+  ⚡ &nbsp;PARTIAL NASA DATA — some fields missing in archive<br>
+  <span style='color:#ffe88a;font-size:0.60rem;'>Synced: {_fields} · Rest kept at previous values</span>
+</div>""", unsafe_allow_html=True)
+    elif _sync == "not_found":
+        st.markdown(f"""
+<div style='margin:-4px 0 14px;padding:9px 14px;border-radius:8px;
+            background:rgba(255,80,80,0.07);border:1px solid rgba(255,80,80,0.28);
+            font-family:Space Mono,monospace;font-size:0.68rem;color:#ff7070;'>
+  ⚠️ &nbsp;<b style='color:#ffaaaa'>"{st.session_state.star_name}"</b> not found in NASA Exoplanet Archive<br>
+  <span style='color:#ffbbbb;font-size:0.60rem;'>
+    Try the full planet name, e.g. "Kepler-10 b" · Sliders unchanged
+  </span>
+</div>""", unsafe_allow_html=True)
 
     # Dynamic suggestions per mission
     if selected_mission == "Kepler":
@@ -2138,10 +2325,39 @@ if not st.session_state.search_btn:
 # =============================================================================
 time_label = "QUARTER" if selected_mission == "Kepler" else "SECTOR"
 st.markdown(f"""
-<div class="status-text animate-in" style='margin-bottom:1.2rem;'>
+<div class="status-text animate-in" style='margin-bottom:0.6rem;'>
   > ANALYSING &nbsp;<span style='color:#00ffff'>{st.session_state.star_name.upper()}</span>
   &nbsp;·&nbsp; {selected_mission.upper()} {time_label} {time_segment}
 </div>""", unsafe_allow_html=True)
+
+# ── NASA Archive sync status banner (results page) ────────────────────────────
+_r_sync = st.session_state.nasa_sync_status
+if _r_sync == "ok":
+    _r_fields = " · ".join(getattr(st.session_state, "nasa_sync_fields", []))
+    st.markdown(f"""
+<div style='margin-bottom:1rem;padding:7px 14px;border-radius:8px;
+            background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.28);
+            font-family:Space Mono,monospace;font-size:0.65rem;color:#00ff88;'>
+  ✅ &nbsp;NASA EXOPLANET ARCHIVE SYNC COMPLETE &nbsp;·&nbsp;
+  <span style='color:#88ffcc;'>{_r_fields}</span>
+</div>""", unsafe_allow_html=True)
+elif _r_sync == "partial":
+    _r_fields = " · ".join(getattr(st.session_state, "nasa_sync_fields", []))
+    st.markdown(f"""
+<div style='margin-bottom:1rem;padding:7px 14px;border-radius:8px;
+            background:rgba(255,208,0,0.06);border:1px solid rgba(255,208,0,0.28);
+            font-family:Space Mono,monospace;font-size:0.65rem;color:#ffd044;'>
+  ⚡ &nbsp;PARTIAL NASA SYNC &nbsp;·&nbsp;
+  <span style='color:#ffe88a;'>{_r_fields} loaded · remaining fields at manual values</span>
+</div>""", unsafe_allow_html=True)
+elif _r_sync == "not_found":
+    st.warning(
+        f"⚠️ **NASA Archive:** No entry found for *\"{st.session_state.star_name}\"*. "
+        "Sliders are at manually set values. "
+        "Try the full planet name (e.g. `Kepler-10 b`) for automatic data sync.",
+        icon=None
+    )
+
 
 # ── Fetch & clean ─────────────────────────────────────────────────────────────
 with st.spinner("📡 Contacting NASA MAST archive …"):
