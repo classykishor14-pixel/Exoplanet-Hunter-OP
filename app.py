@@ -642,6 +642,162 @@ section[data-testid="stSidebar"] hr {
 div.element-container div.stAlert {
     font-family: 'Space Mono', monospace;
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   PLANET PROFILE CARD — full-width hero panel
+════════════════════════════════════════════════════════════════════════════ */
+
+@keyframes profileGlow {
+    0%, 100% { box-shadow: 0 0 40px rgba(0,212,255,0.10), 0 8px 48px rgba(0,0,0,0.65),
+               inset 0 1px 0 rgba(255,255,255,0.06); }
+    50%       { box-shadow: 0 0 70px rgba(0,212,255,0.18), 0 8px 48px rgba(0,0,0,0.65),
+               inset 0 1px 0 rgba(255,255,255,0.08); }
+}
+
+@keyframes orbitSpin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+@keyframes planetPulse {
+    0%, 100% { transform: scale(1.00); filter: brightness(1.0); }
+    50%       { transform: scale(1.04); filter: brightness(1.15); }
+}
+
+@keyframes ringPulse {
+    0%, 100% { opacity: 0.35; transform: scale(1.00); }
+    50%       { opacity: 0.55; transform: scale(1.06); }
+}
+
+@keyframes tickerScroll {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+.planet-profile-card {
+    background: linear-gradient(135deg,
+        rgba(3, 8, 24, 0.82) 0%,
+        rgba(5, 14, 38, 0.78) 50%,
+        rgba(3, 8, 24, 0.84) 100%);
+    backdrop-filter:         blur(28px) saturate(180%) brightness(0.92);
+    -webkit-backdrop-filter: blur(28px) saturate(180%) brightness(0.92);
+    border: 1px solid rgba(0, 212, 255, 0.28);
+    border-radius: 22px;
+    padding: 32px 36px 28px;
+    margin: 1.4rem 0 1.6rem;
+    position: relative;
+    overflow: hidden;
+    animation: profileGlow 5s ease-in-out infinite;
+}
+
+/* Scanline texture overlay */
+.planet-profile-card::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 3px,
+        rgba(0, 212, 255, 0.012) 3px,
+        rgba(0, 212, 255, 0.012) 4px
+    );
+    border-radius: 22px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Corner accent brackets */
+.planet-profile-card::after {
+    content: "";
+    position: absolute; top: 12px; left: 12px;
+    width: 28px; height: 28px;
+    border-top: 2px solid rgba(0, 212, 255, 0.55);
+    border-left: 2px solid rgba(0, 212, 255, 0.55);
+    border-radius: 4px 0 0 0;
+    pointer-events: none;
+}
+
+.ppc-content { position: relative; z-index: 1; }
+
+/* ── Planet orb (SVG-based, rendered inline) ── */
+.ppc-orb-wrap {
+    display: flex; align-items: center; justify-content: center;
+    position: relative; width: 120px; height: 120px; margin: 0 auto;
+}
+
+/* ── Column icon panels ── */
+.ppc-icon-panel {
+    background: rgba(5, 14, 38, 0.60);
+    border: 1px solid rgba(0, 212, 255, 0.18);
+    border-radius: 16px;
+    padding: 22px 20px 18px;
+    text-align: center;
+    transition: transform 0.22s ease, border-color 0.28s ease, box-shadow 0.28s ease;
+    height: 100%;
+}
+.ppc-icon-panel:hover {
+    transform: translateY(-4px);
+    border-color: rgba(0, 212, 255, 0.45);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.50), 0 0 20px rgba(0,212,255,0.10);
+}
+
+.ppc-icon {
+    font-size: 2.6rem;
+    line-height: 1;
+    margin-bottom: 10px;
+    display: block;
+    filter: drop-shadow(0 0 8px currentColor);
+}
+
+.ppc-panel-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.58rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: #00ccaa;
+    margin-bottom: 8px;
+}
+
+.ppc-panel-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.05rem;
+    font-weight: 700;
+    line-height: 1.25;
+    margin-bottom: 6px;
+}
+
+.ppc-panel-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.70rem;
+    color: #7090b0;
+    line-height: 1.5;
+}
+
+/* ── Radial score ring ── */
+.ppc-score-ring {
+    position: relative;
+    width: 108px; height: 108px;
+    margin: 0 auto 10px;
+}
+.ppc-score-ring svg { width: 108px; height: 108px; overflow: visible; }
+
+/* ── Ticker tape at bottom ── */
+.ppc-ticker {
+    margin-top: 22px;
+    border-top: 1px solid rgba(0,212,255,0.16);
+    padding-top: 10px;
+    overflow: hidden;
+    white-space: nowrap;
+}
+.ppc-ticker-inner {
+    display: inline-block;
+    animation: tickerScroll 22s linear infinite;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.62rem;
+    color: #004466;
+    letter-spacing: 0.15em;
+}
+.ppc-ticker-inner span { color: #00aabb; margin: 0 3px; }
 </style>
 
 <!-- KEN BURNS DRIFT LAYER — the animated cosmic background -->
@@ -887,6 +1043,460 @@ def estimate_planet_radius_earth(transit_depth: float,
     SOLAR_TO_EARTH_RADII = 109.076   # 1 R☉ = 109.076 R⊕
     rp_over_rs = float(np.sqrt(max(transit_depth, 0.0)))
     return rp_over_rs * star_radius_solar * SOLAR_TO_EARTH_RADII
+
+
+# =============================================================================
+# ATMOSPHERE POTENTIAL CLASSIFIER
+# =============================================================================
+
+def get_atmosphere_potential(
+    planet_radius_earth: float,
+    planet_mass_earth:   float,
+    density_gcc:         float,
+    hz_zone_label:       str,
+    flux_ratio:          float,
+) -> dict:
+    """
+    Estimate the likelihood and type of a retained atmosphere.
+
+    Logic is based on:
+      - Escape velocity proxy (mass/radius²)
+      - Stellar irradiation (photoevaporation risk via flux_ratio)
+      - Planet size relative to the "radius gap" (Fulton gap ~1.5–2.0 R⊕)
+      - HZ zone position
+
+    Returns dict with: label, emoji, color, likelihood_pct, note
+    """
+    # Escape velocity proxy:  v_esc² ∝ M / R  (in Earth units)
+    v_esc_sq = planet_mass_earth / max(planet_radius_earth, 0.01)
+
+    # Photoevaporation risk:  high flux → atmosphere stripped
+    # Flux > 40 S⊕  (hot rocky zone) → very high stripping risk
+    photo_risk = min(1.0, float(flux_ratio) / 40.0)
+
+    # Base retention score from escape velocity (0–1)
+    if v_esc_sq >= 25.0:         # Jupiter-class
+        base = 0.97
+    elif v_esc_sq >= 6.0:        # Sub-Neptune / big Super-Earth
+        base = 0.82
+    elif v_esc_sq >= 1.5:        # Earth-like
+        base = 0.62
+    elif v_esc_sq >= 0.4:        # Mars-like
+        base = 0.30
+    else:
+        base = 0.08              # Mercury-like
+
+    # Irradiation penalty
+    retained = base * (1.0 - 0.72 * photo_risk)
+
+    # Radius gap adjustment: planets 1.5–2.0 R⊕ are transitional
+    if 1.5 <= planet_radius_earth <= 2.0:
+        retained *= 0.80   # uncertain regime
+
+    likelihood_pct = int(np.clip(retained * 100, 2, 98))
+
+    # ── Classify ────────────────────────────────────────────────────────────
+    hz_in = hz_zone_label in ("Green Zone", "Cool Edge", "Hot Edge")
+
+    if planet_radius_earth > 4.0:
+        label   = "Thick H/He Envelope"
+        emoji   = "🌫️"
+        color   = "#4a7cff"
+        note    = "Gas-dominated — no solid surface to walk on."
+    elif planet_radius_earth > 1.8 and density_gcc < 3.0:
+        label   = "Volatile-Rich Envelope"
+        emoji   = "💨"
+        color   = "#00d4ff"
+        note    = "Water vapour / H₂ envelope likely; sub-Neptune class."
+    elif likelihood_pct >= 65 and hz_in:
+        label   = "Earth-like Atmosphere"
+        emoji   = "🌬️"
+        color   = "#00ff88"
+        note    = "Mass & flux suggest nitrogen/oxygen or CO₂ atmosphere could persist."
+    elif likelihood_pct >= 40:
+        label   = "Thin Atmosphere"
+        emoji   = "🌀"
+        color   = "#ffe66d"
+        note    = "Moderate retention; Mars or Venus analogue possible."
+    elif flux_ratio > 10.0:
+        label   = "Atmosphere Stripped"
+        emoji   = "☢️"
+        color   = "#ff4f2e"
+        note    = "High irradiation — photoevaporation likely denuded any primordial atmosphere."
+    else:
+        label   = "Bare Rock / Tenuous"
+        emoji   = "🪨"
+        color   = "#aaaaaa"
+        note    = "Insufficient gravity to retain a significant atmosphere."
+
+    return {
+        "label"          : label,
+        "emoji"          : emoji,
+        "color"          : color,
+        "likelihood_pct" : likelihood_pct,
+        "note"           : note,
+    }
+
+
+# =============================================================================
+# PLANET PROFILE CARD BUILDER
+# =============================================================================
+
+def _svg_radial_gauge(score: float, color: str, size: int = 108) -> str:
+    """Return an inline SVG radial progress ring for the Habitability Score."""
+    r       = 44
+    cx = cy = size // 2
+    circ    = 2 * 3.14159 * r
+    filled  = circ * (score / 100.0)
+    gap     = circ - filled
+    # Neon glow via multiple filter layers
+    return f"""
+<svg width="{size}" height="{size}" viewBox="0 0 {size} {size}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="glowRing" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="{color}" stop-opacity="1"/>
+      <stop offset="100%" stop-color="{color}" stop-opacity="0.55"/>
+    </linearGradient>
+  </defs>
+  <!-- Background track -->
+  <circle cx="{cx}" cy="{cy}" r="{r}" fill="none"
+          stroke="rgba(0,212,255,0.10)" stroke-width="8"/>
+  <!-- Progress arc -->
+  <circle cx="{cx}" cy="{cy}" r="{r}" fill="none"
+          stroke="url(#ringGrad)" stroke-width="8"
+          stroke-linecap="round"
+          stroke-dasharray="{filled:.1f} {gap:.1f}"
+          transform="rotate(-90 {cx} {cy})"
+          filter="url(#glowRing)"/>
+  <!-- Centre score text -->
+  <text x="{cx}" y="{cy - 6}" text-anchor="middle"
+        font-family="Space Mono, monospace" font-size="18" font-weight="700"
+        fill="{color}">{score:.0f}</text>
+  <text x="{cx}" y="{cy + 11}" text-anchor="middle"
+        font-family="Space Mono, monospace" font-size="9"
+        fill="rgba(0,204,170,0.85)">/100</text>
+</svg>"""
+
+
+def _svg_planet_orb(comp_color: str, hz_color: str, radius_earth: float) -> str:
+    """Return an inline SVG animated planet orb with orbital ring."""
+    # Scale visual size: clamp between 28–52 px radius
+    vis_r = int(np.clip(28 + (radius_earth - 0.5) * 6, 28, 52))
+    cx = cy = 60
+    orb_r   = vis_r
+    ring_rx = orb_r + 22
+    ring_ry = int(ring_rx * 0.28)
+
+    # Pick gradient stops from composition colour
+    c1 = comp_color
+    c2 = hz_color
+
+    return f"""
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="orbGrad" cx="38%" cy="32%" r="65%">
+      <stop offset="0%"   stop-color="{c1}" stop-opacity="0.95"/>
+      <stop offset="55%"  stop-color="{c2}" stop-opacity="0.70"/>
+      <stop offset="100%" stop-color="#020816" stop-opacity="0.98"/>
+    </radialGradient>
+    <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="{c1}" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="{c1}" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="orbGlow">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="orbClip">
+      <circle cx="{cx}" cy="{cy}" r="{orb_r}"/>
+    </clipPath>
+  </defs>
+  <!-- Ambient outer glow -->
+  <circle cx="{cx}" cy="{cy}" r="{orb_r + 16}"
+          fill="url(#glowGrad)" opacity="0.7">
+    <animate attributeName="r"
+      values="{orb_r+14};{orb_r+20};{orb_r+14}"
+      dur="4s" repeatCount="indefinite"/>
+    <animate attributeName="opacity"
+      values="0.5;0.85;0.5" dur="4s" repeatCount="indefinite"/>
+  </circle>
+  <!-- Orbital ring (back half) -->
+  <ellipse cx="{cx}" cy="{cy}" rx="{ring_rx}" ry="{ring_ry}"
+           fill="none" stroke="{c2}" stroke-width="1.2" opacity="0.30"/>
+  <!-- Planet body -->
+  <circle cx="{cx}" cy="{cy}" r="{orb_r}"
+          fill="url(#orbGrad)" filter="url(#orbGlow)"/>
+  <!-- Surface shimmer band -->
+  <ellipse cx="{cx}" cy="{int(cy - orb_r*0.18)}"
+           rx="{int(orb_r*0.72)}" ry="{int(orb_r*0.14)}"
+           fill="{c1}" opacity="0.12" clip-path="url(#orbClip)"/>
+  <!-- Specular highlight -->
+  <ellipse cx="{int(cx - orb_r*0.28)}" cy="{int(cy - orb_r*0.30)}"
+           rx="{int(orb_r*0.24)}" ry="{int(orb_r*0.14)}"
+           fill="white" opacity="0.18" clip-path="url(#orbClip)"/>
+  <!-- Orbital ring (front half, over planet) -->
+  <path d="M {cx-ring_rx} {cy}
+           A {ring_rx} {ring_ry} 0 0 0 {cx+ring_rx} {cy}"
+        fill="none" stroke="{c2}" stroke-width="1.4" opacity="0.55"/>
+</svg>"""
+
+
+def build_planet_profile_card(
+    star_name:            str,
+    best_period:          float,
+    best_depth:           float,
+    best_duration:        float,
+    planet_radius_earth:  float,
+    planet_mass_earth:    float,
+    comp:                 dict,
+    hz:                   dict,
+    atm:                  dict,
+    effective_sma:        float,
+    star_luminosity_solar: float,
+    star_radius_solar:    float,
+    n_transits:           int,
+    snr:                  float,
+) -> str:
+    """
+    Build and return the full Planet Profile Card as an HTML string
+    ready for st.markdown(..., unsafe_allow_html=True).
+
+    Layout (Streamlit columns are used around this call):
+      ┌──────────────────────────────────────────────────────────────────────┐
+      │  [ORB]  PLANET DESIGNATION · orbital strip                          │
+      │─────────────────────────────────────────────────────────────────────│
+      │  [COMPOSITION]   [ATMOSPHERE]   [HABITABILITY SCORE]   [QUICK STATS]│
+      │─────────────────────────────────────────────────────────────────────│
+      │  TICKER: raw telemetry data stream                                  │
+      └──────────────────────────────────────────────────────────────────────┘
+    """
+    hi          = hz["hi"]
+    hz_color    = hz["zone_color"]
+    comp_color  = comp["color"]
+    atm_color   = atm["color"]
+
+    # ── Tier badge ───────────────────────────────────────────────────────────
+    if hi >= 70:
+        tier_lbl, tier_bg = "POTENTIALLY HABITABLE",  "rgba(0,255,136,0.12)"
+        tier_border = "rgba(0,255,136,0.45)"
+    elif hi >= 40:
+        tier_lbl, tier_bg = "MARGINAL CONDITIONS",    "rgba(255,208,68,0.10)"
+        tier_border = "rgba(255,208,68,0.42)"
+    elif hi >= 15:
+        tier_lbl, tier_bg = "UNLIKELY HABITABLE",     "rgba(255,136,0,0.10)"
+        tier_border = "rgba(255,136,0,0.40)"
+    else:
+        tier_lbl, tier_bg = "NOT HABITABLE",          "rgba(255,51,0,0.10)"
+        tier_border = "rgba(255,51,0,0.38)"
+
+    # ── SVG elements ────────────────────────────────────────────────────────
+    orb_svg   = _svg_planet_orb(comp_color, hz_color, planet_radius_earth)
+    gauge_svg = _svg_radial_gauge(hi, hz_color)
+
+    # ── Atmosphere likelihood bar ────────────────────────────────────────────
+    atm_pct   = atm["likelihood_pct"]
+    atm_bar   = f"""
+<div style="margin-top:8px;background:rgba(255,255,255,0.07);
+            border-radius:3px;height:5px;overflow:hidden;">
+  <div style="width:{atm_pct}%;height:100%;
+              background:linear-gradient(90deg,{atm_color},{atm_color}88);
+              border-radius:3px;box-shadow:0 0 6px {atm_color}66;"></div>
+</div>
+<div style="font-size:0.60rem;color:{atm_color};margin-top:3px;
+            font-family:'Space Mono',monospace;">{atm_pct}% retention est.</div>"""
+
+    # ── Quick-stats column ───────────────────────────────────────────────────
+    dur_h  = best_duration * 24.0
+    qs_rows = [
+        ("Period",   f"{best_period:.4f} d"),
+        ("Duration", f"{dur_h:.2f} h"),
+        ("Depth",    f"{best_depth*1e6:.0f} ppm"),
+        ("Radius",   f"{planet_radius_earth:.2f} R⊕"),
+        ("SMA",      f"{effective_sma:.4f} AU"),
+        ("Flux",     f"{hz['flux_ratio']:.3f} S⊕"),
+        ("Transits", f"~{n_transits}"),
+        ("BLS SNR",  f"{snr:.1f}×"),
+    ]
+    qs_html = "".join(
+        f"<div style='display:flex;justify-content:space-between;"
+        f"padding:3px 0;border-bottom:1px solid rgba(0,212,255,0.07);'>"
+        f"<span style='color:#4a6a8a;'>{k}</span>"
+        f"<span style='color:#c8e0f4;'>{v}</span></div>"
+        for k, v in qs_rows
+    )
+
+    # ── Ticker tape data ─────────────────────────────────────────────────────
+    ticker_items = [
+        ("STAR",       star_name.upper()),
+        ("PERIOD",     f"{best_period:.5f} D"),
+        ("DEPTH",      f"{best_depth*1e6:.1f} PPM"),
+        ("R_P",        f"{planet_radius_earth:.2f} R⊕"),
+        ("M_P",        f"{planet_mass_earth:.2f} M⊕"),
+        ("DENSITY",    f"{comp['density_gcc']:.3f} G/CM³"),
+        ("COMPOSITION",comp['category'].upper()),
+        ("SMA",        f"{effective_sma:.4f} AU"),
+        ("FLUX",       f"{hz['flux_ratio']:.3f} S⊕"),
+        ("HZ ZONE",    hz['zone_label'].upper()),
+        ("HI SCORE",   f"{hi:.1f}/100"),
+        ("ATM",        atm['label'].upper()),
+        ("L_STAR",     f"{star_luminosity_solar:.4f} L☉"),
+        ("R_STAR",     f"{star_radius_solar:.2f} R☉"),
+        ("BLS SNR",    f"{snr:.1f}×"),
+    ]
+    ticker_str = "  ·  ".join(
+        f"<span>{k}</span> {v}" for k, v in ticker_items
+    )
+    # duplicate for seamless loop
+    ticker_str = ticker_str + "  ·  " + ticker_str
+
+    # ── Assemble full card HTML ──────────────────────────────────────────────
+    card = f"""
+<div class="planet-profile-card glass-in">
+<div class="ppc-content">
+
+  <!-- ── HEADER ROW ── -->
+  <div style="display:flex;align-items:center;gap:28px;margin-bottom:26px;flex-wrap:wrap;">
+
+    <!-- Animated planet orb -->
+    <div style="flex-shrink:0;">{orb_svg}</div>
+
+    <!-- Name + orbital strip -->
+    <div style="flex:1;min-width:200px;">
+      <div style="font-family:'Space Mono',monospace;font-size:0.60rem;
+                  letter-spacing:0.30em;color:#00ccaa;margin-bottom:4px;">
+        ◈ PLANET PROFILE — CANDIDATE EXOWORLD
+      </div>
+      <div style="font-family:'Space Mono',monospace;font-size:1.65rem;
+                  font-weight:700;color:#eaf4ff;line-height:1.1;
+                  text-shadow:0 0 30px rgba(0,212,255,0.30);">
+        {star_name.upper()} b
+      </div>
+      <div style="font-size:0.75rem;color:#4a7aaa;font-family:'Space Mono',monospace;
+                  margin-top:3px;">
+        {comp['emoji']} {comp['category']}
+        &nbsp;·&nbsp; {hz['zone_emoji']} {hz['zone_label']}
+        &nbsp;·&nbsp; {atm['emoji']} {atm['label']}
+      </div>
+      <!-- Orbital progress strip -->
+      <div style="margin-top:12px;display:flex;align-items:center;gap:10px;">
+        <div style="flex:1;height:3px;border-radius:2px;
+                    background:linear-gradient(90deg,
+                      rgba(0,212,255,0.08),
+                      {hz_color}55 {int(min(100, hz['flux_ratio']*40))}%,
+                      rgba(0,212,255,0.05));
+                    position:relative;overflow:hidden;">
+          <div style="position:absolute;top:0;left:{int(min(95,hz['flux_ratio']*38))}%;
+                      width:6px;height:3px;border-radius:3px;
+                      background:{hz_color};box-shadow:0 0 8px {hz_color};"></div>
+        </div>
+        <div style="font-family:'Space Mono',monospace;font-size:0.62rem;
+                    color:#336688;white-space:nowrap;">
+          {effective_sma:.4f} AU  ·  P = {best_period:.4f} d
+        </div>
+      </div>
+    </div>
+
+    <!-- Tier badge -->
+    <div style="flex-shrink:0;padding:8px 18px;border-radius:10px;
+                background:{tier_bg};border:1px solid {tier_border};
+                font-family:'Space Mono',monospace;font-size:0.62rem;
+                letter-spacing:0.10em;color:#eaf4ff;text-align:center;
+                text-shadow:0 0 8px {hz_color}66;">
+      {hz['zone_emoji']}<br>
+      <span style="font-size:0.78rem;font-weight:700;color:{hz_color};">
+        {tier_lbl}
+      </span>
+    </div>
+  </div>
+
+  <!-- ── THREE ICON COLUMNS + QUICK STATS ── -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;
+              margin-bottom:4px;">
+
+    <!-- Column 1: Composition -->
+    <div class="ppc-icon-panel" style="border-color:rgba({int(comp_color[1:3],16)},{int(comp_color[3:5],16)},{int(comp_color[5:7],16)},0.35);">
+      <div class="ppc-panel-title">◈ Composition</div>
+      <div class="ppc-icon" style="color:{comp_color};">{comp['emoji']}</div>
+      <div class="ppc-panel-value" style="color:{comp_color};
+           text-shadow:0 0 14px {comp_color}66;">
+        {comp['category']}
+      </div>
+      <div class="ppc-panel-sub" style="margin-top:6px;">
+        <span style="color:#00ccaa;">{comp['density_gcc']:.3f}</span> g/cm³<br>
+        <span style="color:#00ccaa;">{comp['density_rel']:.2f}×</span> Earth<br>
+        R<sub>p</sub> = <span style="color:#00ccaa;">{planet_radius_earth:.2f}</span> R⊕
+      </div>
+      <!-- Density mini-bar -->
+      <div style="margin-top:9px;background:rgba(255,255,255,0.06);
+                  border-radius:3px;height:4px;overflow:hidden;">
+        <div style="width:{int(min(100, comp['density_gcc'] / 14.0 * 100))}%;
+                    height:100%;background:{comp_color};opacity:0.75;
+                    border-radius:3px;"></div>
+      </div>
+      <div style="font-size:0.58rem;color:#336655;margin-top:3px;
+                  font-family:'Space Mono',monospace;">
+        density  (0 → 14 g/cm³)
+      </div>
+    </div>
+
+    <!-- Column 2: Atmosphere Potential -->
+    <div class="ppc-icon-panel" style="border-color:rgba({int(atm_color[1:3],16)},{int(atm_color[3:5],16)},{int(atm_color[5:7],16)},0.32);">
+      <div class="ppc-panel-title">💨 Atmosphere</div>
+      <div class="ppc-icon" style="color:{atm_color};">{atm['emoji']}</div>
+      <div class="ppc-panel-value" style="color:{atm_color};
+           text-shadow:0 0 14px {atm_color}66;font-size:0.88rem;">
+        {atm['label']}
+      </div>
+      <div class="ppc-panel-sub" style="margin-top:6px;">
+        {atm['note']}
+      </div>
+      {atm_bar}
+    </div>
+
+    <!-- Column 3: Habitability Score -->
+    <div class="ppc-icon-panel" style="border-color:{hz_color}44;">
+      <div class="ppc-panel-title">🌿 Habitability Score</div>
+      <div class="ppc-score-ring">{gauge_svg}</div>
+      <div class="ppc-panel-value" style="color:{hz_color};
+           text-shadow:0 0 14px {hz_color}66;font-size:0.92rem;">
+        {hz['zone_label']}
+      </div>
+      <div class="ppc-panel-sub" style="margin-top:4px;">
+        <span style="color:#00ccaa;">HZ pos</span>
+          {hz['score_breakdown']['hz_position']:.1f}
+        &nbsp;·&nbsp;
+        <span style="color:#00ccaa;">size</span>
+          {hz['score_breakdown']['planet_size']:.1f}
+        &nbsp;·&nbsp;
+        <span style="color:#00ccaa;">orbit</span>
+          {hz['score_breakdown']['orbital']:.1f}
+      </div>
+    </div>
+
+    <!-- Column 4: Quick Stats -->
+    <div class="ppc-icon-panel">
+      <div class="ppc-panel-title">📡 Telemetry</div>
+      <div style="font-family:'Space Mono',monospace;font-size:0.68rem;
+                  margin-top:4px;">
+        {qs_html}
+      </div>
+    </div>
+
+  </div><!-- /grid -->
+
+  <!-- ── TICKER TAPE ── -->
+  <div class="ppc-ticker">
+    <div class="ppc-ticker-inner">{ticker_str}</div>
+  </div>
+
+</div><!-- /ppc-content -->
+</div><!-- /planet-profile-card -->
+"""
+    return card
 
 
 # =============================================================================
@@ -1595,6 +2205,52 @@ n_transits = int(np.floor(t_span / best_period))
 noise_ppm  = float(np.std(clean_f)) * 1e6
 snr        = float(power.max()) / float(np.median(power)) if np.median(power) > 0 else 0.0
 
+# ── Pre-compute all derived science needed for the Profile Card ──────────────
+_planet_radius_earth = estimate_planet_radius_earth(best_depth, star_radius_solar)
+_comp                = get_planet_composition(planet_mass_earth, _planet_radius_earth)
+
+_star_mass_solar     = star_luminosity_solar ** 0.25
+_sma_kepler_au       = (best_period / 365.25) ** (2.0 / 3.0) * _star_mass_solar ** (1.0 / 3.0)
+_effective_sma       = semi_major_axis_au if abs(semi_major_axis_au - 1.0) > 0.001 \
+                       else _sma_kepler_au
+
+_hz = calculate_habitability_index(
+    semi_major_axis_au    = _effective_sma,
+    star_luminosity_solar = star_luminosity_solar,
+    planet_radius_earth   = _planet_radius_earth,
+    planet_mass_earth     = planet_mass_earth,
+)
+
+_atm = get_atmosphere_potential(
+    planet_radius_earth = _planet_radius_earth,
+    planet_mass_earth   = planet_mass_earth,
+    density_gcc         = _comp["density_gcc"],
+    hz_zone_label       = _hz["zone_label"],
+    flux_ratio          = _hz["flux_ratio"],
+)
+
+# ── PLANET PROFILE CARD ───────────────────────────────────────────────────────
+st.markdown('<div class="section-header animate-in delay-1">◈  PLANET PROFILE</div>',
+            unsafe_allow_html=True)
+
+_profile_html = build_planet_profile_card(
+    star_name             = st.session_state.star_name,
+    best_period           = best_period,
+    best_depth            = best_depth,
+    best_duration         = best_duration,
+    planet_radius_earth   = _planet_radius_earth,
+    planet_mass_earth     = planet_mass_earth,
+    comp                  = _comp,
+    hz                    = _hz,
+    atm                   = _atm,
+    effective_sma         = _effective_sma,
+    star_luminosity_solar = star_luminosity_solar,
+    star_radius_solar     = star_radius_solar,
+    n_transits            = n_transits,
+    snr                   = snr,
+)
+st.markdown(_profile_html, unsafe_allow_html=True)
+
 # ── Stat cards ────────────────────────────────────────────────────────────────
 st.markdown('<div class="section-header animate-in delay-1">★  DETECTED PLANET PARAMETERS</div>',
             unsafe_allow_html=True)
@@ -1616,9 +2272,6 @@ for col, color, label, value, unit in [
 # ── Planet Composition ────────────────────────────────────────────────────────
 st.markdown('<div class="section-header animate-in delay-2">★  PLANET COMPOSITION ANALYSIS</div>',
             unsafe_allow_html=True)
-
-_planet_radius_earth = estimate_planet_radius_earth(best_depth, star_radius_solar)
-_comp = get_planet_composition(planet_mass_earth, _planet_radius_earth)
 
 _comp_col1, _comp_col2, _comp_col3 = st.columns([1.1, 1.1, 1.8])
 
@@ -1660,22 +2313,6 @@ with _comp_col3:
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ── Habitability Index ────────────────────────────────────────────────────────
-# Kepler's 3rd law: a (AU) = (P_days / 365.25)^(2/3) * M_star^(1/3)
-# We assume M_star ≈ L_star^0.25 (main-sequence mass–luminosity relation)
-_star_mass_solar = star_luminosity_solar ** 0.25
-_sma_kepler_au   = (best_period / 365.25) ** (2.0 / 3.0) * _star_mass_solar ** (1.0 / 3.0)
-
-# If the user left the default (1.0 AU) use the BLS-derived estimate
-_effective_sma = semi_major_axis_au if abs(semi_major_axis_au - 1.0) > 0.001 \
-                 else _sma_kepler_au
-
-_hz = calculate_habitability_index(
-    semi_major_axis_au    = _effective_sma,
-    star_luminosity_solar = star_luminosity_solar,
-    planet_radius_earth   = _planet_radius_earth,
-    planet_mass_earth     = planet_mass_earth,
-)
-
 st.markdown('<div class="section-header animate-in delay-2">🌿  HABITABILITY INDEX  —  GOLDILOCKS ZONE ANALYSIS</div>',
             unsafe_allow_html=True)
 
