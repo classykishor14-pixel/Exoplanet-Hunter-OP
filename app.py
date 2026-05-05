@@ -13,7 +13,6 @@ NEW FEATURES:
   • Neon Space Mono terminal aesthetic
   • Glowing cyan/teal text effects
   • CRT scanline overlay (optional)
-  • Planet composition classification (Gas Giant/Super-Earth/Rocky/Lava World)
 """
 
 import streamlit as st
@@ -53,23 +52,6 @@ N_BINS           = 60
 SG_WINDOW        = 101
 SG_POLY          = 3
 
-# ── Planetary constants for composition classification ───────────────────────
-# Density thresholds in g/cm³
-DENSITY_GAS_GIANT      = 1.5   # < 1.5 g/cm³ → Gas Giant
-DENSITY_SUPER_EARTH     = 4.0   # 1.5–4.0 g/cm³ → Super-Earth
-DENSITY_ROCKY          = 6.0   # 4.0–6.0 g/cm³ → Rocky
-# > 6.0 g/cm³ → Lava World (Iron-rich/Mercury-like)
-
-# Earth values for reference (not used directly but helpful for understanding)
-EARTH_RADIUS_KM = 6371.0
-EARTH_MASS_KG   = 5.972e24
-EARTH_DENSITY   = 5.514  # g/cm³
-
-# Jupiter values
-JUPITER_RADIUS_KM = 69911.0
-JUPITER_MASS_KG   = 1.898e27
-JUPITER_DENSITY   = 1.326  # g/cm³
-
 # ── Matplotlib palette ────────────────────────────────────────────────────────
 BG_DARK  = "#03050f"
 BG_PANEL = "#0d1525"
@@ -85,175 +67,606 @@ C_PEAK   = "#ff4f6e"
 C_PERI   = "#00d4ff"
 C_ANNO   = "#ffe66d"
 
-# Planet composition colors for UI
-PLANET_COLORS = {
-    "Gas Giant": "#ff6b9d",
-    "Super-Earth": "#4ecdc4",
-    "Rocky": "#ffe66d",
-    "Lava World": "#ff4757",
-    "Unknown": "#dfe6e9"
+# =============================================================================
+# ░░░  MASTER CSS — NEON SPACE MONO + KEN BURNS + GLASSMORPHISM  ░░░
+# =============================================================================
+st.markdown("""
+<style>
+/* ── Google Fonts (Space Mono for terminal feel) ── */
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Share+Tech+Mono&display=swap');
+
+/* ════════════════════════════════════════════════════════════════════════════
+   KEN BURNS DRIFT EFFECT - Cosmic Animation
+════════════════════════════════════════════════════════════════════════════ */
+
+@keyframes cosmicZoom {
+    0% {
+        transform: scale(1.00);
+    }
+    50% {
+        transform: scale(1.12);
+    }
+    100% {
+        transform: scale(1.00);
+    }
 }
 
-
-# =============================================================================
-# ░░░  PLANET COMPOSITION CLASSIFICATION FUNCTION  ░░░
-# =============================================================================
-
-def get_planet_composition(planet_mass, planet_radius, mass_unit="earth", radius_unit="earth"):
-    """
-    Classify a planet as 'Gas Giant', 'Super-Earth', 'Rocky', or 'Lava World'
-    based on its density using NASA Exoplanet Archive logic.
-    
-    Parameters:
-    -----------
-    planet_mass : float
-        Planet mass value
-    planet_radius : float
-        Planet radius value
-    mass_unit : str
-        Unit of mass ('earth' for Earth masses, 'jupiter' for Jupiter masses, 'kg' for kg)
-    radius_unit : str
-        Unit of radius ('earth' for Earth radii, 'jupiter' for Jupiter radii, 'km' for km)
-    
-    Returns:
-    --------
-    dict : {
-        'classification': str,  # One of: Gas Giant, Super-Earth, Rocky, Lava World
-        'density': float,       # Density in g/cm³
-        'confidence': str,      # Confidence level based on data quality
-        'description': str      # Brief scientific description
+@keyframes starDrift {
+    0% {
+        transform: translate(0%, 0%) scale(1);
+        opacity: 0.5;
     }
-    
-    NASA Exoplanet Archive Classification Logic:
-    --------------------------------------------
-    - Gas Giant:   Density < 1.5 g/cm³ (like Jupiter, Saturn)
-    - Super-Earth: Density 1.5–4.0 g/cm³ (intermediate, likely water-rich)
-    - Rocky:       Density 4.0–6.0 g/cm³ (Earth-like, silicate composition)
-    - Lava World:  Density > 6.0 g/cm³ (Iron-rich, Mercury-like, extreme surface)
-    """
-    
-    # Conversion factors to SI units (kg, m)
-    # Earth values
-    EARTH_MASS_KG = 5.972e24
-    EARTH_RADIUS_M = 6.371e6
-    
-    # Jupiter values
-    JUPITER_MASS_KG = 1.898e27
-    JUPITER_RADIUS_M = 6.9911e7
-    
-    # Convert to kg and meters
-    if mass_unit.lower() == "earth":
-        mass_kg = planet_mass * EARTH_MASS_KG
-    elif mass_unit.lower() == "jupiter":
-        mass_kg = planet_mass * JUPITER_MASS_KG
-    elif mass_unit.lower() == "kg":
-        mass_kg = planet_mass
-    else:
-        raise ValueError(f"Unknown mass unit: {mass_unit}. Use 'earth', 'jupiter', or 'kg'")
-    
-    if radius_unit.lower() == "earth":
-        radius_m = planet_radius * EARTH_RADIUS_M
-    elif radius_unit.lower() == "jupiter":
-        radius_m = planet_radius * JUPITER_RADIUS_M
-    elif radius_unit.lower() == "km":
-        radius_m = planet_radius * 1000
-    else:
-        raise ValueError(f"Unknown radius unit: {radius_unit}. Use 'earth', 'jupiter', or 'km'")
-    
-    # Calculate volume (assuming sphere) in m³
-    volume_m3 = (4.0/3.0) * np.pi * (radius_m ** 3)
-    
-    # Calculate density in kg/m³
-    density_kg_m3 = mass_kg / volume_m3
-    
-    # Convert to g/cm³ (1 g/cm³ = 1000 kg/m³)
-    density_g_cm3 = density_kg_m3 / 1000.0
-    
-    # Classify based on density thresholds
-    if density_g_cm3 < DENSITY_GAS_GIANT:
-        classification = "Gas Giant"
-        confidence = "High" if density_g_cm3 < 0.8 else "Medium"
-        description = (
-            "Low-density planet primarily composed of hydrogen and helium. "
-            "Similar to Jupiter and Saturn. Likely has no solid surface."
-        )
-    elif density_g_cm3 < DENSITY_SUPER_EARTH:
-        classification = "Super-Earth"
-        confidence = "Medium"
-        description = (
-            "Intermediate density planet. May have a thick atmosphere and "
-            "potentially water-rich composition. Larger than Earth but smaller than Neptune."
-        )
-    elif density_g_cm3 < DENSITY_ROCKY:
-        classification = "Rocky"
-        confidence = "High"
-        description = (
-            "Earth-like density. Composed primarily of silicates and metals. "
-            "Likely has a solid surface and potentially a thin atmosphere."
-        )
-    else:
-        classification = "Lava World"
-        confidence = "Medium" if density_g_cm3 < 10.0 else "High"
-        description = (
-            "Iron-rich, ultra-dense planet. Mercury-like composition. "
-            "Extreme surface temperatures, likely covered in molten lava."
-        )
-    
-    return {
-        'classification': classification,
-        'density': round(density_g_cm3, 3),
-        'confidence': confidence,
-        'description': description,
-        'mass_earth': round(mass_kg / EARTH_MASS_KG, 2),
-        'radius_earth': round(radius_m / EARTH_RADIUS_M, 2)
+    50% {
+        transform: translate(-2%, -1.5%) scale(1.08);
+        opacity: 0.9;
     }
+    100% {
+        transform: translate(0%, 0%) scale(1);
+        opacity: 0.5;
+    }
+}
 
+@keyframes scanline {
+    0% {
+        transform: translateY(-100%);
+    }
+    100% {
+        transform: translateY(100%);
+    }
+}
 
-def estimate_planet_mass_from_depth(depth_ppm, star_mass_solar=1.0, star_radius_solar=1.0):
-    """
-    Estimate planet radius from transit depth, then estimate mass based on density assumption.
+.cosmic-drift {
+    position: fixed;
+    top: -8%;
+    left: -8%;
+    width: 116%;
+    height: 116%;
+    z-index: -2;
+    pointer-events: none;
+    animation: cosmicZoom 28s ease-in-out infinite alternate;
+    will-change: transform;
+    background-color: #02030a !important;
+    background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.68' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23g)' opacity='0.04'/%3E%3C/svg%3E"),
+        radial-gradient(ellipse 120% 120% at 50% 50%, transparent 28%, rgba(1,2,10,0.80) 72%, rgba(1,2,8,0.97) 100%),
+        radial-gradient(ellipse 80% 65% at 52% 48%, rgba(8,18,55,0.55) 0%, transparent 70%),
+        radial-gradient(ellipse 52% 38% at 82% 82%, rgba(210,95,12,0.30) 0%, rgba(160,55,8,0.14) 45%, transparent 72%),
+        radial-gradient(ellipse 48% 42% at 80% 14%, rgba(0,185,230,0.34) 0%, rgba(0,100,175,0.16) 50%, transparent 78%),
+        radial-gradient(ellipse 68% 58% at 16% 52%, rgba(105,22,165,0.44) 0%, rgba(55,10,95,0.22) 48%, transparent 78%),
+        linear-gradient(158deg, #04060f 0%, #020309 55%, #030509 100%) !important;
+    background-size: 400px 400px, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100% !important;
+    background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat !important;
+    background-attachment: scroll !important;
+}
+
+.star-drift {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    animation: starDrift 35s ease-in-out infinite alternate;
+}
+
+.star-drift::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+        radial-gradient(1.2px 1.2px at  8%  12%, rgba(255,255,255,0.60) 0%, transparent 100%),
+        radial-gradient(1.0px 1.0px at 22%  78%, rgba(255,255,255,0.45) 0%, transparent 100%),
+        radial-gradient(1.2px 1.2px at 37%  31%, rgba(180,220,255,0.55) 0%, transparent 100%),
+        radial-gradient(1.0px 1.0px at 55%   9%, rgba(255,255,255,0.50) 0%, transparent 100%),
+        radial-gradient(1.2px 1.2px at 68%  62%, rgba(200,230,255,0.42) 0%, transparent 100%),
+        radial-gradient(1.0px 1.0px at 81%  24%, rgba(255,255,255,0.56) 0%, transparent 100%),
+        radial-gradient(1.2px 1.2px at 92%  87%, rgba(180,210,255,0.46) 0%, transparent 100%),
+        radial-gradient(1.0px 1.0px at 14%  55%, rgba(255,255,255,0.38) 0%, transparent 100%),
+        radial-gradient(1.2px 1.2px at 46%  90%, rgba(255,255,255,0.52) 0%, transparent 100%),
+        radial-gradient(1.0px 1.0px at 73%  43%, rgba(200,240,255,0.42) 0%, transparent 100%),
+        radial-gradient(0.8px 0.8px at 91%  33%, rgba(255,220,180,0.48) 0%, transparent 100%),
+        radial-gradient(1.1px 1.1px at 47%  67%, rgba(180,200,255,0.44) 0%, transparent 100%),
+        radial-gradient(0.9px 0.9px at 63%  88%, rgba(255,255,210,0.52) 0%, transparent 100%);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+}
+
+/* Optional CRT scanline effect (uncomment to enable) */
+/* 
+.scanline {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        to bottom,
+        transparent 50%,
+        rgba(0, 0, 0, 0.3) 50%
+    );
+    background-size: 100% 4px;
+    pointer-events: none;
+    z-index: 999;
+    animation: scanline 8s linear infinite;
+}
+*/
+
+/* ════════════════════════════════════════════════════════════════════════════
+   NEON SPACE MONO - HERO TITLE & SUB-HEADERS
+   Futuristic NASA terminal aesthetic with glow effects
+════════════════════════════════════════════════════════════════════════════ */
+
+/* Main Hero Title - Neon Space Mono */
+.hero-title {
+    font-family: 'Space Mono', 'Share Tech Mono', monospace;
+    font-size: 3.2rem;
+    font-weight: 700;
+    letter-spacing: -1px;
+    line-height: 1.05;
+    margin-bottom: 0.28rem;
+    text-align: center;
     
-    Parameters:
-    -----------
-    depth_ppm : float
-        Transit depth in parts per million
-    star_mass_solar : float
-        Star mass in solar masses (default 1.0)
-    star_radius_solar : float
-        Star radius in solar radii (default 1.0)
+    /* Neon cyan core */
+    color: #00ffff;
+    text-shadow: 
+        0 0 5px rgba(0, 255, 255, 0.3),
+        0 0 10px rgba(0, 255, 255, 0.5),
+        0 0 20px rgba(0, 255, 255, 0.7),
+        0 0 40px rgba(0, 100, 255, 0.5),
+        0 0 80px rgba(0, 150, 255, 0.3);
     
-    Returns:
-    --------
-    tuple : (radius_earth, mass_estimate_earth)
-        Estimated radius (Earth radii) and mass (Earth masses)
-    """
-    # Solar radius in km
-    SOLAR_RADIUS_KM = 695700.0
-    EARTH_RADIUS_KM = 6371.0
+    animation: neonPulse 3s ease-in-out infinite;
+}
+
+@keyframes neonPulse {
+    0%, 100% {
+        text-shadow: 
+            0 0 5px rgba(0, 255, 255, 0.3),
+            0 0 10px rgba(0, 255, 255, 0.5),
+            0 0 20px rgba(0, 255, 255, 0.7),
+            0 0 40px rgba(0, 100, 255, 0.5);
+        opacity: 1;
+    }
+    50% {
+        text-shadow: 
+            0 0 10px rgba(0, 255, 255, 0.5),
+            0 0 20px rgba(0, 255, 255, 0.7),
+            0 0 30px rgba(0, 255, 255, 0.9),
+            0 0 60px rgba(0, 100, 255, 0.7),
+            0 0 100px rgba(0, 150, 255, 0.5);
+        opacity: 0.95;
+    }
+}
+
+/* Hero Subtitle - Glowing Teal */
+.hero-sub {
+    font-family: 'Space Mono', 'Share Tech Mono', monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    text-align: center;
+    margin-bottom: 2rem;
     
-    # Transit depth = (Rp/Rs)²
-    # So Rp = Rs * sqrt(depth)
-    depth_ratio = depth_ppm / 1e6
-    star_radius_km = star_radius_solar * SOLAR_RADIUS_KM
-    planet_radius_km = star_radius_km * np.sqrt(depth_ratio)
-    planet_radius_earth = planet_radius_km / EARTH_RADIUS_KM
+    color: #00ccaa;
+    text-shadow: 
+        0 0 3px rgba(0, 204, 170, 0.5),
+        0 0 8px rgba(0, 204, 170, 0.3);
     
-    # Estimate mass based on typical density (5.5 g/cm³ for rocky planets)
-    # If radius < 2 Earth radii, assume rocky (density ~5.5)
-    # If radius between 2-4, assume super-earth (density ~3.5)
-    # If radius > 4, assume gas giant (density ~1.3)
-    if planet_radius_earth < 2.0:
-        assumed_density = 5.5  # g/cm³ (Earth-like)
-    elif planet_radius_earth < 4.0:
-        assumed_density = 3.5  # g/cm³ (Super-Earth)
-    else:
-        assumed_density = 1.3  # g/cm³ (Gas Giant)
+    animation: subPulse 4s ease-in-out infinite;
+}
+
+@keyframes subPulse {
+    0%, 100% {
+        text-shadow: 0 0 3px rgba(0, 204, 170, 0.5), 0 0 8px rgba(0, 204, 170, 0.3);
+        letter-spacing: 0.2em;
+    }
+    50% {
+        text-shadow: 0 0 6px rgba(0, 204, 170, 0.8), 0 0 12px rgba(0, 204, 170, 0.5);
+        letter-spacing: 0.22em;
+    }
+}
+
+/* Section Headers - Glowing Cyan Terminal Style */
+.section-header {
+    font-family: 'Space Mono', 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #00ddff;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.42);
+    padding-bottom: 8px;
+    margin: 2.4rem 0 1.1rem 0;
     
-    # Mass = density * volume
-    # Planet mass in Earth masses = (density / Earth_density) * (R/R_Earth)³
-    planet_mass_earth = (assumed_density / EARTH_DENSITY) * (planet_radius_earth ** 3)
+    text-shadow: 
+        0 0 4px rgba(0, 221, 255, 0.4),
+        0 0 8px rgba(0, 221, 255, 0.2);
     
-    return planet_radius_earth, planet_mass_earth
+    position: relative;
+    overflow: hidden;
+}
+
+/* Terminal cursor effect for section headers */
+.section-header::before {
+    content: ">";
+    position: absolute;
+    left: -20px;
+    color: #00ffff;
+    font-weight: bold;
+    animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+/* Sidebar Header - Neon Pulse */
+.sidebar-header {
+    font-family: 'Space Mono', 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: #00ccff;
+    text-shadow: 0 0 5px rgba(0, 204, 255, 0.5);
+}
+
+/* Description text - Terminal style */
+.desc-text {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.8rem;
+    color: #90b4d5;
+    line-height: 1.68;
+    margin-bottom: 0.95rem;
+    text-shadow: 0 1px 10px rgba(0, 0, 0, 0.80);
+    border-left: 2px solid rgba(0, 212, 255, 0.3);
+    padding-left: 14px;
+}
+
+/* Code blocks - Terminal green */
+code {
+    font-family: 'Space Mono', monospace;
+    background: rgba(0, 212, 255, 0.1);
+    color: #00ff88;
+    text-shadow: 0 0 3px rgba(0, 255, 136, 0.5);
+}
+
+/* Sidebar labels - Terminal style */
+.sidebar-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #00ccff;
+    margin-bottom: 0.3rem;
+    text-shadow: 0 0 3px rgba(0, 204, 255, 0.3);
+}
+
+/* Stat card labels */
+.stat-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.60rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: #00ccaa;
+    margin-bottom: 6px;
+    text-shadow: 0 0 3px rgba(0, 204, 170, 0.3);
+}
+
+/* Status text */
+.status-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    color: #00ffcc;
+    text-shadow: 0 0 4px rgba(0, 255, 204, 0.5);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   BASE CONTAINERS — transparent so the animated background shows through
+════════════════════════════════════════════════════════════════════════════ */
+html, body, .stApp, [data-testid="stAppViewContainer"],
+[data-testid="stMain"], [data-testid="stHeader"], [data-testid="stBottom"],
+[data-testid="stDecoration"], section[data-testid="stSidebar"] ~ div, .main {
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   GLASSMORPHISM — MAIN CONTENT PANEL
+════════════════════════════════════════════════════════════════════════════ */
+.main .block-container {
+    background: rgba(3, 7, 22, 0.46) !important;
+    backdrop-filter:          blur(22px) saturate(170%) brightness(0.95) !important;
+    -webkit-backdrop-filter:  blur(22px) saturate(170%) brightness(0.95) !important;
+    border-radius: 20px !important;
+    padding: 2rem 2.5rem !important;
+    margin-top: 0.6rem !important;
+    border: 1px solid rgba(0, 212, 255, 0.15) !important;
+    box-shadow:
+        0 12px 48px rgba(0, 0, 0, 0.60),
+        inset 0  1px 0 rgba(255, 255, 255, 0.07),
+        inset 0 -1px 0 rgba(0, 212, 255, 0.1) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   GLASSMORPHISM — SIDEBAR
+════════════════════════════════════════════════════════════════════════════ */
+section[data-testid="stSidebar"] {
+    background: rgba(3, 7, 22, 0.72) !important;
+    backdrop-filter:         blur(28px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+    border-right: 1px solid rgba(0, 212, 255, 0.14) !important;
+    box-shadow:
+        4px 0 36px rgba(0, 0, 0, 0.60),
+        inset -1px 0 0 rgba(0, 212, 255, 0.08) !important;
+    min-width: 268px !important;
+    max-width: 325px !important;
+    transform: none !important;
+    visibility: visible !important;
+    display: block !important;
+}
+
+/* Hide collapse toggle — sidebar stays open permanently */
+button[data-testid="collapsedControl"],
+[data-testid="collapsedControl"],
+[data-testid="stSidebarCollapseButton"],
+.css-1lcbmhc,
+.css-1d391kg { display: none !important; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   GLASSMORPHISM — MATPLOTLIB FIGURE WRAPPERS
+════════════════════════════════════════════════════════════════════════════ */
+div[data-testid="stPyplotRootElement"] {
+    background: rgba(2, 6, 18, 0.50) !important;
+    backdrop-filter:         blur(12px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
+    border-radius: 16px !important;
+    border: 1px solid rgba(0, 212, 255, 0.20) !important;
+    padding: 8px !important;
+    box-shadow:
+        0 6px 30px rgba(0, 0, 0, 0.55),
+        inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   GLASSMORPHISM — ALERT / INFO / ERROR / SPINNER BOXES
+════════════════════════════════════════════════════════════════════════════ */
+div[data-testid="stExpander"],
+div[data-testid="stInfo"],
+div[data-testid="stSuccess"],
+div[data-testid="stWarning"],
+div[data-testid="stError"] {
+    background: rgba(5, 12, 30, 0.62) !important;
+    backdrop-filter:         blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(0, 212, 255, 0.22) !important;
+    border-radius: 12px !important;
+}
+
+div[data-testid="stSpinner"] > div {
+    background: rgba(3, 9, 24, 0.70) !important;
+    backdrop-filter:         blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(0, 212, 255, 0.18) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   GLASSMORPHISM — STAT CARDS
+════════════════════════════════════════════════════════════════════════════ */
+.stat-card {
+    background:              rgba(5, 12, 32, 0.58);
+    backdrop-filter:         blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid rgba(0, 212, 255, 0.24);
+    border-radius: 14px;
+    padding: 15px 22px;
+    flex: 1; min-width: 140px;
+    position: relative; overflow: hidden;
+    box-shadow:
+        0 6px 30px rgba(0, 0, 0, 0.55),
+        inset 0  1px 0 rgba(255, 255, 255, 0.09),
+        inset 0 -1px 0 rgba(0, 212, 255, 0.15);
+    transition: transform 0.22s ease, box-shadow 0.28s ease, border-color 0.28s ease;
+}
+.stat-card:hover {
+    transform: translateY(-3px) scale(1.01);
+    box-shadow:
+        0 12px 42px rgba(0, 0, 0, 0.65),
+        0  0   26px rgba(0, 160, 255, 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.11);
+    border-color: rgba(0, 212, 255, 0.55);
+}
+
+/* Coloured accent bar along the top edge of each card */
+.stat-card::before {
+    content: "";
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    border-radius: 14px 14px 0 0;
+}
+
+.stat-card.blue::before  { background: linear-gradient(90deg, #00d4ff, #0070ff); }
+.stat-card.green::before { background: linear-gradient(90deg, #a8ff78, #00d460); }
+.stat-card.gold::before  { background: linear-gradient(90deg, #ffe66d, #ff9800); }
+.stat-card.pink::before  { background: linear-gradient(90deg, #ff4f6e, #ff0055); }
+.stat-card.cyan::before  { background: linear-gradient(90deg, #4a7cff, #00d4ff); }
+
+.stat-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.24rem;
+    font-weight: 700;
+    color: #eaf4ff;
+    text-shadow: 0 0 16px rgba(0, 180, 255, 0.24);
+}
+
+.stat-unit { font-size: 0.67rem; color: #00ccaa; margin-left: 3px; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   TYPOGRAPHY
+════════════════════════════════════════════════════════════════════════════ */
+html, body, [class*="css"] {
+    font-family: 'Space Mono', 'Share Tech Mono', monospace;
+    color: #ccdff5;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   GLASSMORPHISM — WIDGET OVERRIDES
+════════════════════════════════════════════════════════════════════════════ */
+.stTextInput > div > div > input {
+    background:              rgba(4, 11, 30, 0.75) !important;
+    backdrop-filter:         blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(0, 212, 255, 0.55) !important;
+    color: #c8d8f0 !important;
+    font-family: 'Space Mono', monospace !important;
+    border-radius: 9px !important;
+    box-shadow:
+        inset 0 2px 12px rgba(0, 0, 0, 0.36),
+        inset 0 1px 0   rgba(255, 255, 255, 0.05) !important;
+}
+.stTextInput > div > div > input:focus {
+    border-color: #00ffff !important;
+    box-shadow:
+        0 0 0 2px rgba(0, 212, 255, 0.22),
+        inset 0 2px 10px rgba(0, 0, 0, 0.30) !important;
+}
+.stTextInput > div > div > input::placeholder { 
+    font-family: 'Space Mono', monospace;
+    color: #2e4a70 !important; 
+}
+
+/* Primary action button - Terminal style */
+.stButton > button[kind="primary"] {
+    background:              rgba(0, 212, 255, 0.07) !important;
+    backdrop-filter:         blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(0, 212, 255, 0.44) !important;
+    color: #00ffff !important;
+    font-family: 'Space Mono', monospace !important;
+    font-size: 0.78rem !important;
+    letter-spacing: 0.12em !important;
+    border-radius: 11px !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07) !important;
+    transition: all 0.24s ease !important;
+    text-transform: uppercase;
+}
+.stButton > button[kind="primary"]:hover {
+    background:  rgba(0, 212, 255, 0.17) !important;
+    border-color: rgba(0, 212, 255, 0.70) !important;
+    box-shadow:
+        0 0 32px rgba(0, 212, 255, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.10) !important;
+    transform: translateY(-1px) !important;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+}
+
+/* Secondary (default) buttons */
+.stButton > button:not([kind="primary"]) {
+    background:              rgba(8, 20, 50, 0.58) !important;
+    backdrop-filter:         blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(0, 212, 255, 0.40) !important;
+    color: #00ccaa !important;
+    font-family: 'Space Mono', monospace !important;
+    border-radius: 9px !important;
+    transition: all 0.22s ease !important;
+}
+.stButton > button:not([kind="primary"]):hover {
+    background:  rgba(10, 28, 65, 0.72) !important;
+    border-color: rgba(0, 212, 255, 0.58) !important;
+    color: #00ffff !important;
+    text-shadow: 0 0 3px rgba(0, 255, 255, 0.3);
+}
+
+/* Slider track glass pill */
+.stSlider > div > div > div {
+    background: rgba(5, 14, 38, 0.68) !important;
+    border-radius: 8px !important;
+}
+
+/* Radio buttons - Terminal style */
+div.row-widget.stRadio > div {
+    flex-direction: row; gap: 15px;
+    justify-content: center; margin-bottom: 10px;
+}
+div.row-widget.stRadio > div > label {
+    background: rgba(5, 12, 32, 0.60) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(0, 212, 255, 0.32) !important;
+    border-radius: 8px !important;
+    padding: 4px 14px !important;
+    color: #00ccaa !important;
+    font-family: 'Space Mono', monospace !important;
+    font-size: 0.78rem !important;
+    transition: all 0.2s ease !important;
+}
+div.row-widget.stRadio > div > label:hover {
+    border-color: rgba(0, 212, 255, 0.65) !important;
+    color: #00ffff !important;
+    text-shadow: 0 0 3px rgba(0, 255, 255, 0.3);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   ANIMATIONS
+════════════════════════════════════════════════════════════════════════════ */
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes glassIn {
+    from { opacity: 0; transform: scale(0.96) translateY(14px); }
+    to   { opacity: 1; transform: scale(1.00) translateY(0);    }
+}
+
+.animate-in { animation: fadeUp  0.58s cubic-bezier(0.22, 0.68, 0, 1.20) both; }
+.glass-in   { animation: glassIn 0.62s cubic-bezier(0.22, 0.68, 0, 1.10) both; }
+.delay-1    { animation-delay: 0.08s; }
+.delay-2    { animation-delay: 0.20s; }
+.delay-3    { animation-delay: 0.34s; }
+
+/* ── Misc ── */
+#MainMenu, footer, header { visibility: hidden; }
+
+/* Styled thin scrollbar - Terminal cyan */
+::-webkit-scrollbar       { width: 5px; }
+::-webkit-scrollbar-track { background: rgba(2, 5, 16, 0.55); }
+::-webkit-scrollbar-thumb {
+    background: rgba(0, 212, 255, 0.36);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 212, 255, 0.65); }
+
+/* Sidebar internal divider lines */
+section[data-testid="stSidebar"] hr {
+    border-color: rgba(0, 212, 255, 0.30) !important;
+}
+
+/* Success/Warning/Error text overrides */
+div.element-container div.stAlert {
+    font-family: 'Space Mono', monospace;
+}
+</style>
+
+<!-- KEN BURNS DRIFT LAYER — the animated cosmic background -->
+<div class="cosmic-drift"></div>
+<div class="star-drift"></div>
+<!-- Optional CRT scanline effect (uncomment to enable) -->
+<!-- <div class="scanline"></div> -->
+""", unsafe_allow_html=True)
+
+# ── Sidebar state lock (session state + JS belt-and-suspenders) ───────────────
+if "sidebar_state" not in st.session_state:
+    st.session_state.sidebar_state = "expanded"
+
+st.markdown("""
+<script>
+window.addEventListener('load', function () {
+    setTimeout(function () {
+        var btn = document.querySelector('[data-testid="collapsedControl"]');
+        if (btn) btn.style.display = 'none';
+        var sb = document.querySelector('[data-testid="stSidebar"]');
+        if (sb) { sb.style.minWidth = '268px'; sb.style.transform = 'none'; }
+    }, 600);
+});
+</script>
+""", unsafe_allow_html=True)
 
 
 # =============================================================================
@@ -277,6 +690,7 @@ def make_fig(w=13, h=4.2):
 
 # =============================================================================
 # PIPELINE — Kepler + TESS integrated, returns only plain numpy arrays
+# (plain numpy arrays are always pickle-serialisable by @st.cache_data)
 # =============================================================================
 
 def clear_lk_cache():
@@ -360,7 +774,7 @@ def run_bls_cached(time_arr, flux_arr, err_arr):
 
 
 def phase_fold_arrays(clean_time, clean_flux, clean_ferr, period, t0):
-    """Phase-fold and bin. Uses astropy.time.Time directly."""
+    """Phase-fold and bin. Uses astropy.time.Time directly (lk.time.Time doesn't exist)."""
     lc_tmp = lk.LightCurve(
         time=AstropyTime(clean_time, format="bkjd", scale="tdb"),
         flux=clean_flux,
@@ -589,8 +1003,7 @@ with st.sidebar:
       ③ Savitzky-Golay flatten<br>
       ④ Outlier sigma-clip (4σ)<br>
       ⑤ BLS periodogram<br>
-      ⑥ Phase-fold &amp; bin<br>
-      ⑦ Planet composition analysis
+      ⑥ Phase-fold &amp; bin
     </div>
     """, unsafe_allow_html=True)
 
@@ -719,18 +1132,6 @@ n_transits = int(np.floor(t_span / best_period))
 noise_ppm  = float(np.std(clean_f)) * 1e6
 snr        = float(power.max()) / float(np.median(power)) if np.median(power) > 0 else 0.0
 
-# ── Estimate planet radius and mass from transit depth ───────────────────────
-# Assuming a Sun-like star for estimation (user could adjust in future)
-planet_radius_earth, planet_mass_earth = estimate_planet_mass_from_depth(best_depth)
-
-# ── Get planet composition using NASA Exoplanet Archive logic ─────────────────
-composition = get_planet_composition(
-    planet_mass_earth, 
-    planet_radius_earth, 
-    mass_unit="earth", 
-    radius_unit="earth"
-)
-
 # ── Stat cards ────────────────────────────────────────────────────────────────
 st.markdown('<div class="section-header animate-in delay-1">★  DETECTED PLANET PARAMETERS</div>',
             unsafe_allow_html=True)
@@ -749,70 +1150,8 @@ for col, color, label, value, unit in [
           <div class="stat-value">{value}<span class="stat-unit">{unit}</span></div>
         </div>""", unsafe_allow_html=True)
 
-# ── Planet composition card (special highlight) ──────────────────────────────
-st.markdown('<div class="section-header animate-in delay-2">🌍  PLANET COMPOSITION ANALYSIS (NASA Exoplanet Archive Standard)</div>',
-            unsafe_allow_html=True)
-
-# Display composition in a beautiful card
-comp_color = PLANET_COLORS.get(composition['classification'], "#ffffff")
-st.markdown(f"""
-<div style='background: rgba(5, 12, 32, 0.65); backdrop-filter: blur(20px); 
-            border: 1px solid rgba(0, 212, 255, 0.3); border-radius: 16px; 
-            padding: 1.2rem 1.8rem; margin: 0.5rem 0 1rem 0;'>
-  <div style='display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;'>
-    <div>
-      <div style='font-family: Space Mono, monospace; font-size: 0.7rem; letter-spacing: 0.2em; 
-                  color: #00ccaa; text-transform: uppercase;'>Classification</div>
-      <div style='font-family: Space Mono, monospace; font-size: 2.2rem; font-weight: 700; 
-                  color: {comp_color}; text-shadow: 0 0 20px rgba(0,212,255,0.3);'>
-        {composition['classification']}
-      </div>
-    </div>
-    <div>
-      <div style='font-family: Space Mono, monospace; font-size: 0.7rem; letter-spacing: 0.2em; 
-                  color: #00ccaa;'>Density</div>
-      <div style='font-family: Space Mono, monospace; font-size: 1.5rem; font-weight: 700; 
-                  color: #e8f4ff;'>
-        {composition['density']} <span style='font-size: 0.9rem;'>g/cm³</span>
-      </div>
-    </div>
-    <div>
-      <div style='font-family: Space Mono, monospace; font-size: 0.7rem; letter-spacing: 0.2em; 
-                  color: #00ccaa;'>Est. Radius</div>
-      <div style='font-family: Space Mono, monospace; font-size: 1.5rem; font-weight: 700; 
-                  color: #e8f4ff;'>
-        {composition['radius_earth']} <span style='font-size: 0.9rem;'>R_Earth</span>
-      </div>
-    </div>
-    <div>
-      <div style='font-family: Space Mono, monospace; font-size: 0.7rem; letter-spacing: 0.2em; 
-                  color: #00ccaa;'>Est. Mass</div>
-      <div style='font-family: Space Mono, monospace; font-size: 1.5rem; font-weight: 700; 
-                  color: #e8f4ff;'>
-        {composition['mass_earth']} <span style='font-size: 0.9rem;'>M_Earth</span>
-      </div>
-    </div>
-  </div>
-  <div style='margin-top: 1rem; padding-top: 0.8rem; border-top: 1px solid rgba(0,212,255,0.2);'>
-    <div style='font-family: Space Mono, monospace; font-size: 0.75rem; color: #b8d0ff; line-height: 1.5;'>
-      📖 {composition['description']}
-    </div>
-    <div style='margin-top: 8px;'>
-      <span style='background: rgba(0,212,255,0.15); padding: 2px 8px; border-radius: 12px; 
-                   font-family: monospace; font-size: 0.65rem; color: #00ffff;'>
-        Confidence: {composition['confidence']}
-      </span>
-      <span style='background: rgba(0,212,255,0.1); padding: 2px 8px; border-radius: 12px; 
-                   font-family: monospace; font-size: 0.65rem; margin-left: 8px;'>
-        Δ depth = {best_depth*1e6:.0f} ppm
-      </span>
-    </div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
-
 # ── Graph 1: Raw ──────────────────────────────────────────────────────────────
-st.markdown('<div class="section-header animate-in delay-3">01 · RAW LIGHT CURVE</div>',
+st.markdown('<div class="section-header animate-in delay-2">01 · RAW LIGHT CURVE</div>',
             unsafe_allow_html=True)
 st.markdown("""<div class='desc-text'>Raw stellar brightness over time.
 The <span style='color:#ff6b6b'>red curve</span> is the Savitzky-Golay stellar trend —
@@ -822,7 +1161,7 @@ fig_raw = plot_raw(raw_t, raw_f, raw_fe, trend_t, trend_f)
 st.pyplot(fig_raw, use_container_width=True); plt.close(fig_raw)
 
 # ── Graph 2: Flat ─────────────────────────────────────────────────────────────
-st.markdown('<div class="section-header animate-in delay-3">02 · CLEANED &amp; FLATTENED LIGHT CURVE</div>',
+st.markdown('<div class="section-header animate-in delay-2">02 · CLEANED &amp; FLATTENED LIGHT CURVE</div>',
             unsafe_allow_html=True)
 st.markdown(f"""<div class='desc-text'>Top: stellar trend removed.
 Bottom: outlier spikes clipped. Noise floor ≈
@@ -859,6 +1198,5 @@ st.markdown(f"""
   > {st.session_state.star_name.upper()} · {selected_mission} {time_label[0]}{time_segment}
   · {len(clean_t):,} CADENCES · {t_span:.1f} D · NOISE {noise_ppm:.0f} PPM
   · P = {best_period:.5f} D · DEPTH {best_depth*1e6:.0f} PPM
-  · CLASSIFICATION: {composition['classification'].upper()}
   · NASA MAST ARCHIVE
 </div>""", unsafe_allow_html=True)
