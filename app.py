@@ -306,7 +306,7 @@ st.markdown(f"""
   ::-webkit-scrollbar-thumb {{ background: rgba(0,120,200,0.38); border-radius: 4px; }}
   ::-webkit-scrollbar-thumb:hover {{ background: rgba(0,160,255,0.58); }}
 </style>
-""")
+""", unsafe_allow_html=True)
 
 # ── Sidebar state lock ────────────────────────────────────────────────────────
 if "sidebar_state" not in st.session_state:
