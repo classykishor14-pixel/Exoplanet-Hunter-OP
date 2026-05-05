@@ -59,52 +59,68 @@ C_PERI   = "#00d4ff"
 C_ANNO   = "#ffe66d"
 
 # =============================================================================
-# CSS  —  Glassy monochrome background + full glassmorphism
+# CSS  —  Glassy cosmic background + full glassmorphism
 # =============================================================================
+import base64
+import os
+
+@st.cache_data
+def get_base64_of_bin_file(bin_file):
+    if os.path.exists(bin_file):
+        with open(bin_file, 'rb') as f:
+            data = f.read()
+        return base64.b64encode(data).decode()
+    return ""
+
+# Loads your cosmic image
+bg_img_base64 = get_base64_of_bin_file("cosmic_bg.png")
+bg_image_css = f'url("data:image/png;base64,{bg_img_base64}")' if bg_img_base64 else 'radial-gradient(circle at 50% 50%, #1a0b2e 0%, #040814 100%)'
+
 st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Exo+2:wght@300;400;600;800&display=swap');
 
   /* ══════════════════════════════════════════════════════════════════════
-     GLASSY MONOCHROME BACKGROUND
-     Deep purple on left, teal on right, blending into dark navy.
+     COSMIC WALLPAPER BACKGROUND
   ══════════════════════════════════════════════════════════════════════ */
   .stApp {
       background-color: #040814;
       background-image: 
-          radial-gradient(circle at 0% 50%, rgba(90, 30, 150, 0.25) 0%, transparent 50%),
-          radial-gradient(circle at 100% 30%, rgba(0, 180, 220, 0.15) 0%, transparent 60%),
-          radial-gradient(circle at 50% 100%, rgba(20, 40, 80, 0.4) 0%, transparent 70%);
+          linear-gradient(rgba(4, 8, 20, 0.4), rgba(4, 8, 20, 0.4)), /* Dark overlay keeps text readable */
+          """ + bg_image_css + """;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
       background-attachment: fixed;
       min-height: 100vh;
   }
 
   /* ══════════════════════════════════════════════════════════════════════
-     GLASSMORPHISM — main content panel
+     GLASSMORPHISM — main content panel (Slightly more glassy/translucent)
   ══════════════════════════════════════════════════════════════════════ */
   .main .block-container {
-      background: rgba(3, 8, 22, 0.52) !important;
-      backdrop-filter: blur(20px) saturate(165%) !important;
-      -webkit-backdrop-filter: blur(20px) saturate(165%) !important;
+      background: rgba(10, 15, 35, 0.35) !important; /* Reduced opacity */
+      backdrop-filter: blur(12px) saturate(150%) !important; /* Reduced blur */
+      -webkit-backdrop-filter: blur(12px) saturate(150%) !important;
       border-radius: 18px !important;
       padding: 2rem 2.5rem !important;
       margin-top: 0.5rem !important;
-      border: 1px solid rgba(100, 160, 255, 0.13) !important;
+      border: 1px solid rgba(150, 200, 255, 0.15) !important;
       box-shadow:
-          0 8px 40px rgba(0,0,0,0.55),
-          inset 0 1px 0 rgba(255,255,255,0.065),
-          inset 0 -1px 0 rgba(0,0,0,0.30) !important;
+          0 8px 40px rgba(0,0,0,0.65),
+          inset 0 1px 0 rgba(255,255,255,0.1),
+          inset 0 -1px 0 rgba(0,0,0,0.40) !important;
   }
 
   /* ══════════════════════════════════════════════════════════════════════
      GLASSMORPHISM — sidebar (FIXED VISIBILITY)
   ══════════════════════════════════════════════════════════════════════ */
   section[data-testid="stSidebar"] {
-      background: rgba(4, 9, 24, 0.70) !important;
-      backdrop-filter: blur(26px) saturate(180%) !important;
-      -webkit-backdrop-filter: blur(26px) saturate(180%) !important;
-      border-right: 1px solid rgba(80, 140, 255, 0.15) !important;
-      box-shadow: 4px 0 30px rgba(0,0,0,0.55) !important;
+      background: rgba(8, 12, 30, 0.45) !important; /* Reduced opacity */
+      backdrop-filter: blur(16px) saturate(160%) !important; /* Reduced blur */
+      -webkit-backdrop-filter: blur(16px) saturate(160%) !important;
+      border-right: 1px solid rgba(150, 200, 255, 0.12) !important;
+      box-shadow: 4px 0 30px rgba(0,0,0,0.65) !important;
       min-width: 265px !important;
       max-width: 320px !important;
       transform: none !important;
