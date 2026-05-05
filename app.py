@@ -44,6 +44,18 @@ import astropy.units as u
 warnings.filterwarnings("ignore")
 
 # =============================================================================
+# SESSION STATE — must be initialised before any widget reads it
+# =============================================================================
+if "search_btn"           not in st.session_state: st.session_state.search_btn           = False
+if "star_name"            not in st.session_state: st.session_state.star_name            = "Kepler-10"
+if "star_radius_solar"    not in st.session_state: st.session_state.star_radius_solar    = 1.0
+if "planet_mass_earth"    not in st.session_state: st.session_state.planet_mass_earth    = 1.0
+if "star_luminosity_solar" not in st.session_state: st.session_state.star_luminosity_solar = 1.0
+if "semi_major_axis_au"   not in st.session_state: st.session_state.semi_major_axis_au   = 1.0
+if "nasa_synced_planet"   not in st.session_state: st.session_state.nasa_synced_planet   = ""
+if "nasa_sync_status"     not in st.session_state: st.session_state.nasa_sync_status     = None
+
+# =============================================================================
 # NASA EXOPLANET ARCHIVE — TAP Service Integration
 # =============================================================================
 
@@ -2170,19 +2182,7 @@ with st.sidebar:
     st.info("🛸 Searching the cosmos for the next Earth-like world.")
 
 
-# =============================================================================
-# SESSION STATE
-# =============================================================================
-if "search_btn"        not in st.session_state: st.session_state.search_btn        = False
-if "star_name"         not in st.session_state: st.session_state.star_name         = "Kepler-10"
-# Sidebar physics sliders — populated by NASA API or kept at user-set values
-if "star_radius_solar"    not in st.session_state: st.session_state.star_radius_solar    = 1.0
-if "planet_mass_earth"    not in st.session_state: st.session_state.planet_mass_earth    = 1.0
-if "star_luminosity_solar" not in st.session_state: st.session_state.star_luminosity_solar = 1.0
-if "semi_major_axis_au"   not in st.session_state: st.session_state.semi_major_axis_au   = 1.0
-# Track which planet was last synced so we don't re-query on every rerun
-if "nasa_synced_planet" not in st.session_state: st.session_state.nasa_synced_planet = ""
-if "nasa_sync_status"   not in st.session_state: st.session_state.nasa_sync_status   = None  # None | "ok" | "not_found" | "partial"
+# (Session state initialised at the top of the file, before the sidebar)
 
 
 
