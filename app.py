@@ -1348,130 +1348,127 @@ def build_planet_profile_card(
 
   <div style="display:flex;align-items:center;gap:28px;margin-bottom:26px;flex-wrap:wrap;">
 
-    <div style="flex-shrink:0;">{orb_svg}</div>
+<div style="flex-shrink:0;">{orb_svg}</div>
 
-    <div style="flex:1;min-width:200px;">
-      <div style="font-family:'Space Mono',monospace;font-size:0.60rem;
-                  letter-spacing:0.30em;color:#00ccaa;margin-bottom:4px;">
-        ◈ PLANET PROFILE — CANDIDATE EXOWORLD
-      </div>
-      <div style="font-family:'Space Mono',monospace;font-size:1.65rem;
-                  font-weight:700;color:#eaf4ff;line-height:1.1;
-                  text-shadow:0 0 30px rgba(0,212,255,0.30);">
-        {star_name.upper()} b
-      </div>
-      <div style="font-size:0.75rem;color:#4a7aaa;font-family:'Space Mono',monospace;
-                  margin-top:3px;">
-        {comp['emoji']} {comp['category']}
-        &nbsp;·&nbsp; {hz['zone_emoji']} {hz['zone_label']}
-        &nbsp;·&nbsp; {atm['emoji']} {atm['label']}
-      </div>
-      <div style="margin-top:12px;display:flex;align-items:center;gap:10px;">
-        <div style="flex:1;height:3px;border-radius:2px;
-                    background:linear-gradient(90deg,
-                      rgba(0,212,255,0.08),
-                      {hz_color}55 {int(min(100, hz['flux_ratio']*40))}%,
-                      rgba(0,212,255,0.05));
-                    position:relative;overflow:hidden;">
-          <div style="position:absolute;top:0;left:{int(min(95,hz['flux_ratio']*38))}%;
-                      width:6px;height:3px;border-radius:3px;
-                      background:{hz_color};box-shadow:0 0 8px {hz_color};"></div>
-        </div>
-        <div style="font-family:'Space Mono',monospace;font-size:0.62rem;
-                    color:#336688;white-space:nowrap;">
-          {effective_sma:.4f} AU  ·  P = {best_period:.4f} d
-        </div>
-      </div>
+<div style="flex:1;min-width:200px;">
+  <div style="font-family:'Space Mono',monospace;font-size:0.60rem;
+              letter-spacing:0.30em;color:#00ccaa;margin-bottom:4px;">
+    ◈ PLANET PROFILE — CANDIDATE EXOWORLD
+  </div>
+  <div style="font-family:'Space Mono',monospace;font-size:1.65rem;
+              font-weight:700;color:#eaf4ff;line-height:1.1;
+              text-shadow:0 0 30px rgba(0,212,255,0.30);">
+    {star_name.upper()} b
+  </div>
+  <div style="font-size:0.75rem;color:#4a7aaa;font-family:'Space Mono',monospace;
+              margin-top:3px;">
+    {comp['emoji']} {comp['category']}
+    &nbsp;·&nbsp; {hz['zone_emoji']} {hz['zone_label']}
+    &nbsp;·&nbsp; {atm['emoji']} {atm['label']}
+  </div>
+  <div style="margin-top:12px;display:flex;align-items:center;gap:10px;">
+    <div style="flex:1;height:3px;border-radius:2px;
+                background:linear-gradient(90deg,
+                  rgba(0,212,255,0.08),
+                  {hz_color}55 {int(min(100, hz['flux_ratio']*40))}%,
+                  rgba(0,212,255,0.05));
+                position:relative;overflow:hidden;">
+      <div style="position:absolute;top:0;left:{int(min(95,hz['flux_ratio']*38))}%;
+                  width:6px;height:3px;border-radius:3px;
+                  background:{hz_color};box-shadow:0 0 8px {hz_color};"></div>
     </div>
+    <div style="font-family:'Space Mono',monospace;font-size:0.62rem;
+                color:#336688;white-space:nowrap;">
+      {effective_sma:.4f} AU  ·  P = {best_period:.4f} d
+    </div>
+  </div>
+</div>
 
-    <div style="flex-shrink:0;padding:8px 18px;border-radius:10px;
-                background:{tier_bg};border:1px solid {tier_border};
-                font-family:'Space Mono',monospace;font-size:0.62rem;
-                letter-spacing:0.10em;color:#eaf4ff;text-align:center;
-                text-shadow:0 0 8px {hz_color}66;">
-      {hz['zone_emoji']}<br>
-      <span style="font-size:0.78rem;font-weight:700;color:{hz_color};">
-        {tier_lbl}
-      </span>
-    </div>
+<div style="flex-shrink:0;padding:8px 18px;border-radius:10px;
+            background:{tier_bg};border:1px solid {tier_border};
+            font-family:'Space Mono',monospace;font-size:0.62rem;
+            letter-spacing:0.10em;color:#eaf4ff;text-align:center;
+            text-shadow:0 0 8px {hz_color}66;">
+  {hz['zone_emoji']}<br>
+  <span style="font-size:0.78rem;font-weight:700;color:{hz_color};">
+    {tier_lbl}
+  </span>
+</div>
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;
-              margin-bottom:4px;">
+          margin-bottom:4px;">
 
-    <div class="ppc-icon-panel" style="border-color:rgba({int(comp_color[1:3],16)},{int(comp_color[3:5],16)},{int(comp_color[5:7],16)},0.35);">
-      <div class="ppc-panel-title">◈ Composition</div>
-      <div class="ppc-icon" style="color:{comp_color};">{comp['emoji']}</div>
-      <div class="ppc-panel-value" style="color:{comp_color};
-           text-shadow:0 0 14px {comp_color}66;">
-        {comp['category']}
-      </div>
-      <div class="ppc-panel-sub" style="margin-top:6px;">
-        <span style="color:#00ccaa;">{comp['density_gcc']:.3f}</span> g/cm³<br>
-        <span style="color:#00ccaa;">{comp['density_rel']:.2f}×</span> Earth<br>
-        R<sub>p</sub> = <span style="color:#00ccaa;">{planet_radius_earth:.2f}</span> R⊕
-      </div>
-      <div style="margin-top:9px;background:rgba(255,255,255,0.06);
-                  border-radius:3px;height:4px;overflow:hidden;">
-        <div style="width:{int(min(100, comp['density_gcc'] / 14.0 * 100))}%;
-                    height:100%;background:{comp_color};opacity:0.75;
-                    border-radius:3px;"></div>
-      </div>
-      <div style="font-size:0.58rem;color:#336655;margin-top:3px;
-                  font-family:'Space Mono',monospace;">
-        density  (0 → 14 g/cm³)
-      </div>
-    </div>
+<div class="ppc-icon-panel" style="border-color:rgba({int(comp_color[1:3],16)},{int(comp_color[3:5],16)},{int(comp_color[5:7],16)},0.35);">
+  <div class="ppc-panel-title">◈ Composition</div>
+  <div class="ppc-icon" style="color:{comp_color};">{comp['emoji']}</div>
+  <div class="ppc-panel-value" style="color:{comp_color};
+       text-shadow:0 0 14px {comp_color}66;">
+    {comp['category']}
+  </div>
+  <div class="ppc-panel-sub" style="margin-top:6px;">
+    <span style="color:#00ccaa;">{comp['density_gcc']:.3f}</span> g/cm³<br>
+    <span style="color:#00ccaa;">{comp['density_rel']:.2f}×</span> Earth<br>
+    R<sub>p</sub> = <span style="color:#00ccaa;">{planet_radius_earth:.2f}</span> R⊕
+  </div>
+  <div style="margin-top:9px;background:rgba(255,255,255,0.06);
+              border-radius:3px;height:4px;overflow:hidden;">
+    <div style="width:{int(min(100, comp['density_gcc'] / 14.0 * 100))}%;
+                height:100%;background:{comp_color};opacity:0.75;
+                border-radius:3px;"></div>
+  </div>
+  <div style="font-size:0.58rem;color:#336655;margin-top:3px;
+              font-family:'Space Mono',monospace;">
+    density  (0 → 14 g/cm³)
+  </div>
+</div>
 
-    <div class="ppc-icon-panel" style="border-color:rgba({int(atm_color[1:3],16)},{int(atm_color[3:5],16)},{int(atm_color[5:7],16)},0.32);">
-      <div class="ppc-panel-title">💨 Atmosphere</div>
-      <div class="ppc-icon" style="color:{atm_color};">{atm['emoji']}</div>
-      <div class="ppc-panel-value" style="color:{atm_color};
-           text-shadow:0 0 14px {atm_color}66;font-size:0.88rem;">
-        {atm['label']}
-      </div>
-      <div class="ppc-panel-sub" style="margin-top:6px;">
-        {atm['note']}
-      </div>
-      {atm_bar}
-    </div>
+<div class="ppc-icon-panel" style="border-color:rgba({int(atm_color[1:3],16)},{int(atm_color[3:5],16)},{int(atm_color[5:7],16)},0.32);">
+  <div class="ppc-panel-title">💨 Atmosphere</div>
+  <div class="ppc-icon" style="color:{atm_color};">{atm['emoji']}</div>
+  <div class="ppc-panel-value" style="color:{atm_color};
+       text-shadow:0 0 14px {atm_color}66;font-size:0.88rem;">
+    {atm['label']}
+  </div>
+  <div class="ppc-panel-sub" style="margin-top:6px;">
+    {atm['note']}
+  </div>
+  {atm_bar}
+</div>
 
-    <div class="ppc-icon-panel" style="border-color:{hz_color}44;">
-      <div class="ppc-panel-title">🌿 Habitability Score</div>
-      <div class="ppc-score-ring">{gauge_svg}</div>
-      <div class="ppc-panel-value" style="color:{hz_color};
-           text-shadow:0 0 14px {hz_color}66;font-size:0.92rem;">
-        {hz['zone_label']}
-      </div>
-      <div class="ppc-panel-sub" style="margin-top:4px;">
-        <span style="color:#00ccaa;">HZ pos</span>
-          {hz['score_breakdown']['hz_position']:.1f}
-        &nbsp;·&nbsp;
-        <span style="color:#00ccaa;">size</span>
-          {hz['score_breakdown']['planet_size']:.1f}
-        &nbsp;·&nbsp;
-        <span style="color:#00ccaa;">orbit</span>
-          {hz['score_breakdown']['orbital']:.1f}
-      </div>
-    </div>
+<div class="ppc-icon-panel" style="border-color:{hz_color}44;">
+  <div class="ppc-panel-title">🌿 Habitability Score</div>
+  <div class="ppc-score-ring">{gauge_svg}</div>
+  <div class="ppc-panel-value" style="color:{hz_color};
+       text-shadow:0 0 14px {hz_color}66;font-size:0.92rem;">
+    {hz['zone_label']}
+  </div>
+  <div class="ppc-panel-sub" style="margin-top:4px;">
+    <span style="color:#00ccaa;">HZ pos</span>
+      {hz['score_breakdown']['hz_position']:.1f}
+    &nbsp;·&nbsp;
+    <span style="color:#00ccaa;">size</span>
+      {hz['score_breakdown']['planet_size']:.1f}
+    &nbsp;·&nbsp;
+    <span style="color:#00ccaa;">orbit</span>
+      {hz['score_breakdown']['orbital']:.1f}
+  </div>
+</div>
 
-    <div class="ppc-icon-panel">
-      <div class="ppc-panel-title">📡 Telemetry</div>
-      <div style="font-family:'Space Mono',monospace;font-size:0.68rem;
-                  margin-top:4px;">
-        {qs_html}
-      </div>
-    </div>
+<div class="ppc-icon-panel">
+  <div class="ppc-panel-title">📡 Telemetry</div>
+  <div style="font-family:'Space Mono',monospace;font-size:0.68rem;
+              margin-top:4px;">
+    {qs_html}
+  </div>
+</div>
 
   </div>
-
   <div class="ppc-ticker">
-    <div class="ppc-ticker-inner">{ticker_str}</div>
+<div class="ppc-ticker-inner">{ticker_str}</div>
   </div>
 
-</div>
-</div>
-"""
+</div></div>"""
     return card
 
 
@@ -1936,19 +1933,19 @@ def plot_bls(periods, power, clean_time, clean_flux, clean_ferr,
 # =============================================================================
 with st.sidebar:
     st.markdown("""
-    <div style='margin-bottom:1.4rem'>
-      <div style='font-family:Space Mono,monospace;font-size:1.05rem;
-                  color:#00ffff;font-weight:700;letter-spacing:-0.5px;
-                  text-shadow:0 0 20px rgba(0,255,255,0.50);'>
-        🔭 EXOPLANET<br>HUNTER
-      </div>
-      <div style='font-size:0.68rem;color:#00ccaa;text-transform:uppercase;
-                  letter-spacing:0.13em;margin-top:5px;
-                  text-shadow:0 0 5px rgba(0,204,170,0.3);'>
-        Multi-Mission BLS Engine
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
+<div style='margin-bottom:1.4rem'>
+  <div style='font-family:Space Mono,monospace;font-size:1.05rem;
+              color:#00ffff;font-weight:700;letter-spacing:-0.5px;
+              text-shadow:0 0 20px rgba(0,255,255,0.50);'>
+    🔭 EXOPLANET<br>HUNTER
+  </div>
+  <div style='font-size:0.68rem;color:#00ccaa;text-transform:uppercase;
+              letter-spacing:0.13em;margin-top:5px;
+              text-shadow:0 0 5px rgba(0,204,170,0.3);'>
+    Multi-Mission BLS Engine
+  </div>
+</div>
+""", unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown('<div class="sidebar-label">TELESCOPE MISSION</div>',
@@ -2045,28 +2042,28 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("""
-    <div style='font-size:0.71rem;color:#00ccaa;line-height:2.0;'>
-      <b style='color:#00ffff'>Detection Pipeline</b><br>
-      ① Download from MAST<br>
-      ② NaN removal + normalise<br>
-      ③ Savitzky-Golay flatten<br>
-      ④ Outlier sigma-clip (4σ)<br>
-      ⑤ BLS periodogram<br>
-      ⑥ Phase-fold &amp; bin
-    </div>
-    """, unsafe_allow_html=True)
+<div style='font-size:0.71rem;color:#00ccaa;line-height:2.0;'>
+  <b style='color:#00ffff'>Detection Pipeline</b><br>
+  ① Download from MAST<br>
+  ② NaN removal + normalise<br>
+  ③ Savitzky-Golay flatten<br>
+  ④ Outlier sigma-clip (4σ)<br>
+  ⑤ BLS periodogram<br>
+  ⑥ Phase-fold &amp; bin
+</div>
+""", unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown('<div class="sidebar-label">👨‍🚀 SYSTEMS OFFICER</div>', unsafe_allow_html=True)
     st.markdown("""
-    <div style='font-family:Space Mono,monospace;font-size:0.75rem;'>
-      <b style='color:#00ffff'>Kishore (Kai)</b><br>
-      <span style='color:#88aacc'>Status:</span> <span style='color:#00ff88'>ACTIVE</span><br>
-      <span style='color:#88aacc'>Clearance:</span> <span style='color:#00ff88'>LEVEL 3</span><br>
-      <span style='color:#88aacc'>Mission:</span> MIT 2031<br>
-      <span style='color:#88aacc'>Modules:</span> ATS-1 | Exoplanet Hunter
-    </div>
-    """, unsafe_allow_html=True)
+<div style='font-family:Space Mono,monospace;font-size:0.75rem;'>
+  <b style='color:#00ffff'>Kishore (Kai)</b><br>
+  <span style='color:#88aacc'>Status:</span> <span style='color:#00ff88'>ACTIVE</span><br>
+  <span style='color:#88aacc'>Clearance:</span> <span style='color:#00ff88'>LEVEL 3</span><br>
+  <span style='color:#88aacc'>Mission:</span> MIT 2031<br>
+  <span style='color:#88aacc'>Modules:</span> ATS-1 | Exoplanet Hunter
+</div>
+""", unsafe_allow_html=True)
     st.info("🛸 Searching the cosmos for the next Earth-like world.")
 
 
@@ -2095,11 +2092,11 @@ if not st.session_state.search_btn:
     ]:
         with col:
             st.markdown(f"""
-            <div class="stat-card {color} glass-in delay-2">
-              <div class="stat-label">{label}</div>
-              <div style='font-family:Space Mono,monospace;font-size:0.88rem;
-                          color:#e8f4ff;margin-top:5px;'>{value}</div>
-            </div>""", unsafe_allow_html=True)
+<div class="stat-card {color} glass-in delay-2">
+  <div class="stat-label">{label}</div>
+  <div style='font-family:Space Mono,monospace;font-size:0.88rem;
+              color:#e8f4ff;margin-top:5px;'>{value}</div>
+</div>""", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.session_state.star_name = st.text_input(
@@ -2121,11 +2118,11 @@ if not st.session_state.search_btn:
         for c in chips
     )
     st.markdown(f"""
-    <div style="display:flex;gap:12px;justify-content:center;
-                margin-top:-8px;margin-bottom:22px;flex-wrap:wrap;">
-      <span style="font-size:0.78rem;color:#00ccaa;align-self:center;">SUGGESTIONS:</span>
-      {chip_html}
-    </div>""", unsafe_allow_html=True)
+<div style="display:flex;gap:12px;justify-content:center;
+            margin-top:-8px;margin-bottom:22px;flex-wrap:wrap;">
+  <span style="font-size:0.78rem;color:#00ccaa;align-self:center;">SUGGESTIONS:</span>
+  {chip_html}
+</div>""", unsafe_allow_html=True)
 
     _, btn_col, _ = st.columns([1, 2, 1])
     with btn_col:
@@ -2240,10 +2237,10 @@ for col, color, label, value, unit in [
 ]:
     with col:
         st.markdown(f"""
-        <div class="stat-card {color} glass-in delay-2">
-          <div class="stat-label">{label}</div>
-          <div class="stat-value">{value}<span class="stat-unit">{unit}</span></div>
-        </div>""", unsafe_allow_html=True)
+<div class="stat-card {color} glass-in delay-2">
+  <div class="stat-label">{label}</div>
+  <div class="stat-value">{value}<span class="stat-unit">{unit}</span></div>
+</div>""", unsafe_allow_html=True)
 
 # ── Planet Composition ────────────────────────────────────────────────────────
 st.markdown('<div class="section-header animate-in delay-2">★  PLANET COMPOSITION ANALYSIS</div>',
@@ -2253,38 +2250,38 @@ _comp_col1, _comp_col2, _comp_col3 = st.columns([1.1, 1.1, 1.8])
 
 with _comp_col1:
     st.markdown(f"""
-    <div class="stat-card glass-in delay-2" style="border-color:rgba({int(_comp['color'][1:3],16)},{int(_comp['color'][3:5],16)},{int(_comp['color'][5:7],16)},0.55);">
-      <div class="stat-label">PLANET TYPE</div>
-      <div style="font-family:'Space Mono',monospace;font-size:1.55rem;font-weight:700;
-                  color:{_comp['color']};text-shadow:0 0 18px {_comp['color']}88;margin-top:4px;">
-        {_comp['emoji']}  {_comp['category']}
-      </div>
-    </div>""", unsafe_allow_html=True)
+<div class="stat-card glass-in delay-2" style="border-color:rgba({int(_comp['color'][1:3],16)},{int(_comp['color'][3:5],16)},{int(_comp['color'][5:7],16)},0.55);">
+  <div class="stat-label">PLANET TYPE</div>
+  <div style="font-family:'Space Mono',monospace;font-size:1.55rem;font-weight:700;
+              color:{_comp['color']};text-shadow:0 0 18px {_comp['color']}88;margin-top:4px;">
+    {_comp['emoji']}  {_comp['category']}
+  </div>
+</div>""", unsafe_allow_html=True)
 
 with _comp_col2:
     st.markdown(f"""
-    <div class="stat-card glass-in delay-2">
-      <div class="stat-label">BULK DENSITY</div>
-      <div class="stat-value">{_comp['density_gcc']:.3f}<span class="stat-unit"> g/cm³</span></div>
-      <div style="font-size:0.68rem;color:#00ccaa;margin-top:4px;font-family:'Space Mono',monospace;">
-        {_comp['density_rel']:.2f} × Earth &nbsp;|&nbsp;
-        R<sub>p</sub> = {_planet_radius_earth:.2f} R⊕
-      </div>
-    </div>""", unsafe_allow_html=True)
+<div class="stat-card glass-in delay-2">
+  <div class="stat-label">BULK DENSITY</div>
+  <div class="stat-value">{_comp['density_gcc']:.3f}<span class="stat-unit"> g/cm³</span></div>
+  <div style="font-size:0.68rem;color:#00ccaa;margin-top:4px;font-family:'Space Mono',monospace;">
+    {_comp['density_rel']:.2f} × Earth &nbsp;|&nbsp;
+    R<sub>p</sub> = {_planet_radius_earth:.2f} R⊕
+  </div>
+</div>""", unsafe_allow_html=True)
 
 with _comp_col3:
     st.markdown(f"""
-    <div class="stat-card glass-in delay-2" style="border-color:rgba({int(_comp['color'][1:3],16)},{int(_comp['color'][3:5],16)},{int(_comp['color'][5:7],16)},0.35);">
-      <div class="stat-label">COMPOSITION NOTE</div>
-      <div style="font-family:'Share Tech Mono',monospace;font-size:0.78rem;
-                  color:#b0cce8;line-height:1.55;margin-top:5px;">
-        {_comp['description']}
-      </div>
-      <div style="font-size:0.64rem;color:#556677;font-family:'Space Mono',monospace;margin-top:7px;">
-        ⚠ Density estimate requires a planet mass (set in sidebar).
-        Radius derived from transit depth × stellar radius.
-      </div>
-    </div>""", unsafe_allow_html=True)
+<div class="stat-card glass-in delay-2" style="border-color:rgba({int(_comp['color'][1:3],16)},{int(_comp['color'][3:5],16)},{int(_comp['color'][5:7],16)},0.35);">
+  <div class="stat-label">COMPOSITION NOTE</div>
+  <div style="font-family:'Share Tech Mono',monospace;font-size:0.78rem;
+              color:#b0cce8;line-height:1.55;margin-top:5px;">
+    {_comp['description']}
+  </div>
+  <div style="font-size:0.64rem;color:#556677;font-family:'Space Mono',monospace;margin-top:7px;">
+    ⚠ Density estimate requires a planet mass (set in sidebar).
+    Radius derived from transit depth × stellar radius.
+  </div>
+</div>""", unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -2314,78 +2311,78 @@ _bar_color = _hz_color
 
 with _hi_col1:
     st.markdown(f"""
-    <div class="stat-card glass-in delay-2" style="border-color:{_hz_color}88;">
-      <div class="stat-label">HABITABILITY INDEX</div>
-      <div style="font-family:'Space Mono',monospace;font-size:2.1rem;font-weight:700;
-                  color:{_hz_color};text-shadow:0 0 22px {_hz_color}99;line-height:1.1;
-                  margin-top:4px;">
-        {_hi_val:.1f}<span style="font-size:1rem;color:#00ccaa;"> / 100</span>
-      </div>
-      <div style="margin-top:8px;background:rgba(255,255,255,0.07);
-                  border-radius:4px;height:6px;overflow:hidden;">
-        <div style="width:{_bar_pct}%;height:100%;background:linear-gradient(90deg,
-             {_bar_color},{_bar_color}cc);border-radius:4px;
-             box-shadow:0 0 8px {_bar_color}88;transition:width 0.8s ease;"></div>
-      </div>
-      <div style="font-size:0.64rem;color:{_tier_color};margin-top:5px;
-                  font-family:'Space Mono',monospace;letter-spacing:0.08em;">
-        {_tier_label}
-      </div>
-    </div>""", unsafe_allow_html=True)
+<div class="stat-card glass-in delay-2" style="border-color:{_hz_color}88;">
+  <div class="stat-label">HABITABILITY INDEX</div>
+  <div style="font-family:'Space Mono',monospace;font-size:2.1rem;font-weight:700;
+              color:{_hz_color};text-shadow:0 0 22px {_hz_color}99;line-height:1.1;
+              margin-top:4px;">
+    {_hi_val:.1f}<span style="font-size:1rem;color:#00ccaa;"> / 100</span>
+  </div>
+  <div style="margin-top:8px;background:rgba(255,255,255,0.07);
+              border-radius:4px;height:6px;overflow:hidden;">
+    <div style="width:{_bar_pct}%;height:100%;background:linear-gradient(90deg,
+         {_bar_color},{_bar_color}cc);border-radius:4px;
+         box-shadow:0 0 8px {_bar_color}88;transition:width 0.8s ease;"></div>
+  </div>
+  <div style="font-size:0.64rem;color:{_tier_color};margin-top:5px;
+              font-family:'Space Mono',monospace;letter-spacing:0.08em;">
+    {_tier_label}
+  </div>
+</div>""", unsafe_allow_html=True)
 
 with _hi_col2:
     st.markdown(f"""
-    <div class="stat-card glass-in delay-2">
-      <div class="stat-label">ZONE CLASSIFICATION</div>
-      <div style="font-family:'Space Mono',monospace;font-size:1.15rem;font-weight:700;
-                  color:{_hz_color};text-shadow:0 0 16px {_hz_color}88;margin-top:5px;">
-        {_hz['zone_emoji']}  {_hz['zone_label']}
-      </div>
-      <div style="font-size:0.68rem;color:#00ccaa;margin-top:6px;
-                  font-family:'Space Mono',monospace;">
-        a = {_effective_sma:.4f} AU<br>
-        Flux = {_hz['flux_ratio']:.3f} S⊕
-      </div>
-    </div>""", unsafe_allow_html=True)
+<div class="stat-card glass-in delay-2">
+  <div class="stat-label">ZONE CLASSIFICATION</div>
+  <div style="font-family:'Space Mono',monospace;font-size:1.15rem;font-weight:700;
+              color:{_hz_color};text-shadow:0 0 16px {_hz_color}88;margin-top:5px;">
+    {_hz['zone_emoji']}  {_hz['zone_label']}
+  </div>
+  <div style="font-size:0.68rem;color:#00ccaa;margin-top:6px;
+              font-family:'Space Mono',monospace;">
+    a = {_effective_sma:.4f} AU<br>
+    Flux = {_hz['flux_ratio']:.3f} S⊕
+  </div>
+</div>""", unsafe_allow_html=True)
 
 with _hi_col3:
     _sb = _hz["score_breakdown"]
     st.markdown(f"""
-    <div class="stat-card glass-in delay-2">
-      <div class="stat-label">SCORE BREAKDOWN</div>
-      <div style="font-family:'Space Mono',monospace;font-size:0.70rem;
-                  line-height:2.0;color:#b0cce8;margin-top:5px;">
-        <span style="color:#00ffcc">HZ Position</span>
-        <span style="float:right;color:#e8f4ff">{_sb['hz_position']:.1f}</span><br>
-        <span style="color:#00ffcc">Planet Size</span>
-        <span style="float:right;color:#e8f4ff">{_sb['planet_size']:.1f}</span><br>
-        <span style="color:#00ffcc">Orbital Stability</span>
-        <span style="float:right;color:#e8f4ff">{_sb['orbital']:.1f}</span><br>
-        <div style="border-top:1px solid rgba(0,212,255,0.3);margin-top:3px;padding-top:3px;">
-          <span style="color:#00ffff;font-weight:700;">TOTAL</span>
-          <span style="float:right;color:{_hz_color};font-weight:700;">{_hi_val:.1f}</span>
-        </div>
-      </div>
-    </div>""", unsafe_allow_html=True)
+<div class="stat-card glass-in delay-2">
+  <div class="stat-label">SCORE BREAKDOWN</div>
+  <div style="font-family:'Space Mono',monospace;font-size:0.70rem;
+              line-height:2.0;color:#b0cce8;margin-top:5px;">
+    <span style="color:#00ffcc">HZ Position</span>
+    <span style="float:right;color:#e8f4ff">{_sb['hz_position']:.1f}</span><br>
+    <span style="color:#00ffcc">Planet Size</span>
+    <span style="float:right;color:#e8f4ff">{_sb['planet_size']:.1f}</span><br>
+    <span style="color:#00ffcc">Orbital Stability</span>
+    <span style="float:right;color:#e8f4ff">{_sb['orbital']:.1f}</span><br>
+    <div style="border-top:1px solid rgba(0,212,255,0.3);margin-top:3px;padding-top:3px;">
+      <span style="color:#00ffff;font-weight:700;">TOTAL</span>
+      <span style="float:right;color:{_hz_color};font-weight:700;">{_hi_val:.1f}</span>
+    </div>
+  </div>
+</div>""", unsafe_allow_html=True)
 
 with _hi_col4:
     st.markdown(f"""
-    <div class="stat-card glass-in delay-2" style="border-color:{_hz_color}44;">
-      <div class="stat-label">GOLDILOCKS ZONE BOUNDARIES</div>
-      <div style="font-family:'Space Mono',monospace;font-size:0.70rem;
-                  line-height:2.1;color:#b0cce8;margin-top:5px;">
-        <span style="color:#ffaa22">Opt. Inner (Recent Venus)</span>
-        <span style="float:right;color:#e8f4ff">{_hz['hz_opt_inner_au']:.4f} AU</span><br>
-        <span style="color:#88ffaa">Conservative Inner</span>
-        <span style="float:right;color:#e8f4ff">{_hz['hz_inner_au']:.4f} AU</span><br>
-        <span style="color:{_hz_color};font-weight:700">▶  Planet  ◀</span>
-        <span style="float:right;color:{_hz_color};font-weight:700">{_effective_sma:.4f} AU</span><br>
-        <span style="color:#88ffaa">Conservative Outer</span>
-        <span style="float:right;color:#e8f4ff">{_hz['hz_outer_au']:.4f} AU</span><br>
-        <span style="color:#4488ff">Opt. Outer (Early Mars)</span>
-        <span style="float:right;color:#e8f4ff">{_hz['hz_opt_outer_au']:.4f} AU</span>
-      </div>
-    </div>""", unsafe_allow_html=True)
+<div class="stat-card glass-in delay-2" style="border-color:{_hz_color}44;">
+  <div class="stat-label">GOLDILOCKS ZONE BOUNDARIES</div>
+  <div style="font-family:'Space Mono',monospace;font-size:0.70rem;
+              line-height:2.1;color:#b0cce8;margin-top:5px;">
+    <span style="color:#ffaa22">Opt. Inner (Recent Venus)</span>
+    <span style="float:right;color:#e8f4ff">{_hz['hz_opt_inner_au']:.4f} AU</span><br>
+    <span style="color:#88ffaa">Conservative Inner</span>
+    <span style="float:right;color:#e8f4ff">{_hz['hz_inner_au']:.4f} AU</span><br>
+    <span style="color:{_hz_color};font-weight:700">▶  Planet  ◀</span>
+    <span style="float:right;color:{_hz_color};font-weight:700">{_effective_sma:.4f} AU</span><br>
+    <span style="color:#88ffaa">Conservative Outer</span>
+    <span style="float:right;color:#e8f4ff">{_hz['hz_outer_au']:.4f} AU</span><br>
+    <span style="color:#4488ff">Opt. Outer (Early Mars)</span>
+    <span style="float:right;color:#e8f4ff">{_hz['hz_opt_outer_au']:.4f} AU</span>
+  </div>
+</div>""", unsafe_allow_html=True)
 
 # ── Narrative description ─────────────────────────────────────────────────────
 st.markdown(f"""
