@@ -65,70 +65,84 @@ NASA_TAP_URL = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync"
 @st.cache_data(show_spinner=False, ttl=3600)
 def fetch_nasa_exoplanet_data(planet_name: str) -> dict | None:
     """
-    Query the NASA Exoplanet Archive TAP service for a specific planet.
+    Query the NASA Exoplanet Archive TAP service for a planet or host star.
 
-    Parameters
-    ----------
-    planet_name : str
-        Exact planet designation, e.g. 'Kepler-10 b', 'TRAPPIST-1 e'.
-        The query is case-insensitive and strips extra whitespace.
+    Resolution order
+    ----------------
+    1. Exact match on pl_name      e.g. "Kepler-10 b"
+    2. Exact match on hostname     e.g. "Kepler-10"  (returns best-characterised planet)
+    3. LIKE prefix on pl_name      e.g. "Kepler-307%" (catches b/c/d variants)
+    4. LIKE prefix on hostname     e.g. "Kepler-307%" (loose last-resort fallback)
+
+    The first strategy that returns rows wins.  Within each result-set we
+    pick the planet with the highest count of non-NULL science fields.
 
     Returns
     -------
-    dict with keys:
-        pl_name   : str   — planet name
-        pl_rade   : float — planet radius  [Earth radii]
-        pl_masse  : float — planet mass    [Earth masses]
-        st_rad    : float — stellar radius [Solar radii]
-        st_lum    : float — stellar lum.   [log Solar; converted to linear]
-        pl_orbsmax: float — semi-major axis [AU]
-    or None if not found / network error.
+    dict with keys pl_name, pl_rade, pl_masse, st_rad, st_lum, pl_orbsmax
+    or None if nothing found / network error.
     """
-    adql = (
-        "SELECT pl_name, pl_rade, pl_masse, st_rad, st_lum, pl_orbsmax "
-        "FROM ps "
-        f"WHERE LOWER(pl_name) = LOWER('{planet_name.strip()}') "
-        "AND pl_rade IS NOT NULL "
-        "ORDER BY pl_rade DESC"
-    )
-    try:
-        resp = requests.get(
-            NASA_TAP_URL,
-            params={"query": adql, "format": "json"},
-            timeout=12,
-        )
-        resp.raise_for_status()
-        rows = resp.json()
-        if not rows:
-            return None
-        row = rows[0]
-        # st_lum is stored as log10(L/L☉); convert to linear
-        st_lum_log = row.get("st_lum")
-        st_lum_linear = (10 ** float(st_lum_log)) if st_lum_log is not None else None
+    q = planet_name.strip().replace("'", "''")   # escape SQL single-quotes
+
+    adql_candidates = [
+        # 1. exact planet name
+        ("SELECT pl_name,pl_rade,pl_masse,st_rad,st_lum,pl_orbsmax FROM ps "
+         "WHERE LOWER(pl_name)=LOWER('" + q + "') ORDER BY pl_rade DESC"),
+        # 2. exact host-star name
+        ("SELECT pl_name,pl_rade,pl_masse,st_rad,st_lum,pl_orbsmax FROM ps "
+         "WHERE LOWER(hostname)=LOWER('" + q + "') ORDER BY pl_rade DESC"),
+        # 3. planet name prefix
+        ("SELECT pl_name,pl_rade,pl_masse,st_rad,st_lum,pl_orbsmax FROM ps "
+         "WHERE LOWER(pl_name) LIKE LOWER('" + q + "%') ORDER BY pl_rade DESC"),
+        # 4. hostname prefix
+        ("SELECT pl_name,pl_rade,pl_masse,st_rad,st_lum,pl_orbsmax FROM ps "
+         "WHERE LOWER(hostname) LIKE LOWER('" + q + "%') ORDER BY pl_rade DESC"),
+    ]
+
+    def _score(r):
+        return sum(1 for k in ("pl_rade","pl_masse","st_rad","st_lum","pl_orbsmax")
+                   if r.get(k) is not None)
+
+    def _parse(row):
+        lum_log = row.get("st_lum")
         return {
             "pl_name"    : row.get("pl_name"),
-            "pl_rade"    : float(row["pl_rade"]) if row.get("pl_rade") is not None else None,
-            "pl_masse"   : float(row["pl_masse"]) if row.get("pl_masse") is not None else None,
-            "st_rad"     : float(row["st_rad"]) if row.get("st_rad") is not None else None,
-            "st_lum"     : st_lum_linear,
+            "pl_rade"    : float(row["pl_rade"])    if row.get("pl_rade")    is not None else None,
+            "pl_masse"   : float(row["pl_masse"])   if row.get("pl_masse")   is not None else None,
+            "st_rad"     : float(row["st_rad"])     if row.get("st_rad")     is not None else None,
+            "st_lum"     : (10 ** float(lum_log))   if lum_log              is not None else None,
             "pl_orbsmax" : float(row["pl_orbsmax"]) if row.get("pl_orbsmax") is not None else None,
         }
-    except Exception:
-        return None
+
+    for adql in adql_candidates:
+        try:
+            resp = requests.get(NASA_TAP_URL,
+                                params={"query": adql, "format": "json"},
+                                timeout=12)
+            resp.raise_for_status()
+            rows = resp.json()
+            if rows:
+                return _parse(max(rows, key=_score))
+        except Exception:
+            continue
+    return None
 
 
 # =============================================================================
 # NASA PLANET NAME AUTOCOMPLETE
 # =============================================================================
 
-@st.cache_data(show_spinner=False, ttl=86400)          # refresh once per day
+@st.cache_data(show_spinner=False, ttl=86400)   # refresh once per day
 def fetch_all_planet_names() -> list[str]:
     """
-    Download every confirmed planet name from the NASA Exoplanet Archive ps table.
-    Returns a sorted list of canonical names, e.g. ['CoRoT-1 b', 'GJ 436 b', ...].
-    Falls back to an empty list on network failure.
+    Download every confirmed pl_name AND hostname from the NASA Exoplanet
+    Archive ps table and merge them into a single de-duplicated sorted list.
+
+    Having hostnames in the list means the autocomplete dropdown can surface
+    "Kepler-307" even though the archive only stores "Kepler-307 b", "Kepler-307 c" etc.
+    Falls back to an empty list on any network error.
     """
-    adql = "SELECT pl_name FROM ps WHERE pl_name IS NOT NULL"
+    adql = "SELECT pl_name, hostname FROM ps WHERE pl_name IS NOT NULL"
     try:
         resp = requests.get(
             NASA_TAP_URL,
@@ -136,23 +150,32 @@ def fetch_all_planet_names() -> list[str]:
             timeout=20,
         )
         resp.raise_for_status()
-        rows = resp.json()
-        names = sorted({r["pl_name"].strip() for r in rows if r.get("pl_name")})
-        return names
+        rows   = resp.json()
+        names  = set()
+        for r in rows:
+            if r.get("pl_name"):
+                names.add(r["pl_name"].strip())
+            if r.get("hostname"):
+                names.add(r["hostname"].strip())
+        return sorted(names)
     except Exception:
         return []
 
 
 def search_planets(query: str) -> list[str]:
     """
-    Case-insensitive, whitespace-tolerant filter over all NASA planet names.
-    Returns up to 12 suggestions that contain the query substring.
+    Case-insensitive substring filter over all NASA planet names + host-star names.
+    Returns up to 15 suggestions, planet designations first, then host names.
     """
     q = query.strip().lower()
     if not q:
         return []
     all_names = fetch_all_planet_names()
-    return [n for n in all_names if q in n.lower()][:12]
+    # Separate exact planet designations (end with a space + letter) from hostnames
+    planets   = [n for n in all_names if q in n.lower() and len(n) > 2 and n[-2] == " "]
+    hosts     = [n for n in all_names if q in n.lower() and not (len(n) > 2 and n[-2] == " ")]
+    combined  = planets[:10] + hosts[:5]
+    return combined[:15]
 
 # ── Astrophysics constants ────────────────────────────────────────────────────
 BLS_MIN_PERIOD   = 0.5
@@ -2230,7 +2253,13 @@ with st.sidebar:
 def _try_nasa_sync(planet_name: str):
     """
     Query NASA Exoplanet Archive for `planet_name` and update session-state
-    sliders in-place.  Records sync status for the UI banner.
+    sliders in-place.  Records sync status and the resolved planet name.
+
+    Resolution strategy (delegated to fetch_nasa_exoplanet_data):
+      1. Exact pl_name match       "Kepler-10 b"
+      2. Exact hostname match      "Kepler-10"
+      3. pl_name prefix LIKE       "Kepler-307%"
+      4. hostname prefix LIKE      "Kepler-307%"
     """
     data = fetch_nasa_exoplanet_data(planet_name)
     if data is None:
