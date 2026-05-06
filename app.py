@@ -65,45 +65,52 @@ NASA_TAP_URL = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync"
 @st.cache_data(show_spinner=False, ttl=3600)
 def fetch_nasa_exoplanet_data(planet_name: str) -> dict | None:
     """
-    Query the NASA Exoplanet Archive TAP service for a planet or host star.
+    Bulletproof query against the NASA Exoplanet Archive TAP service.
 
-    Resolution order
-    ----------------
-    1. Exact match on pl_name      e.g. "Kepler-10 b"
-    2. Exact match on hostname     e.g. "Kepler-10"  (returns best-characterised planet)
-    3. LIKE prefix on pl_name      e.g. "Kepler-307%" (catches b/c/d variants)
-    4. LIKE prefix on hostname     e.g. "Kepler-307%" (loose last-resort fallback)
+    Why the old approach failed
+    ---------------------------
+    The TAP 'ps' table stores one row *per publication*, so a single planet
+    like "Kepler-442 b" may have dozens of rows, many with NULL radii.
+    Sorting by a nullable column (pl_rade DESC) caused NULL rows to bubble up
+    in some TAP implementations, and an exact-string match could silently fail
+    if the archive value has a trailing space or a variant hyphen encoding.
 
-    The first strategy that returns rows wins.  Within each result-set we
-    pick the planet with the highest count of non-NULL science fields.
+    Resolution cascade (stops at first non-empty result set)
+    ---------------------------------------------------------
+    Stage A — pscomppars table (one best-row per planet, rarely NULL)
+      A1. exact pl_name match        "Kepler-442 b"
+      A2. exact hostname match       "Kepler-442"
+      A3. pl_name LIKE prefix        "Kepler-442%"
+      A4. hostname LIKE prefix       "Kepler-442%"
+
+    Stage B — ps table (all publications, more rows, more NULLs)
+      B1–B4: same four patterns as Stage A
+
+    Stage C — normalised-name variants fed through A1 + B1
+      Handles: stripped suffix ("Kepler-442"), hyphen-vs-space ambiguity,
+      letter-suffix with/without space ("Kepler-442b" vs "Kepler-442 b")
+
+    Within each result-set the row with the highest count of non-NULL
+    science fields is returned (no reliance on ORDER BY a nullable column).
 
     Returns
     -------
-    dict with keys pl_name, pl_rade, pl_masse, st_rad, st_lum, pl_orbsmax
-    or None if nothing found / network error.
+    dict  with keys pl_name, pl_rade, pl_masse, st_rad, st_lum, pl_orbsmax
+    None  if all 12+ strategies are exhausted or a network error occurs.
     """
-    q = planet_name.strip().replace("'", "''")   # escape SQL single-quotes
 
-    adql_candidates = [
-        # 1. exact planet name
-        ("SELECT pl_name,pl_rade,pl_masse,st_rad,st_lum,pl_orbsmax FROM ps "
-         "WHERE LOWER(pl_name)=LOWER('" + q + "') ORDER BY pl_rade DESC"),
-        # 2. exact host-star name
-        ("SELECT pl_name,pl_rade,pl_masse,st_rad,st_lum,pl_orbsmax FROM ps "
-         "WHERE LOWER(hostname)=LOWER('" + q + "') ORDER BY pl_rade DESC"),
-        # 3. planet name prefix
-        ("SELECT pl_name,pl_rade,pl_masse,st_rad,st_lum,pl_orbsmax FROM ps "
-         "WHERE LOWER(pl_name) LIKE LOWER('" + q + "%') ORDER BY pl_rade DESC"),
-        # 4. hostname prefix
-        ("SELECT pl_name,pl_rade,pl_masse,st_rad,st_lum,pl_orbsmax FROM ps "
-         "WHERE LOWER(hostname) LIKE LOWER('" + q + "%') ORDER BY pl_rade DESC"),
-    ]
+    # ── Helpers ──────────────────────────────────────────────────────────────
 
-    def _score(r):
-        return sum(1 for k in ("pl_rade","pl_masse","st_rad","st_lum","pl_orbsmax")
+    def _esc(s: str) -> str:
+        """Escape single-quotes for ADQL string literals."""
+        return s.replace("'", "''")
+
+    def _score(r: dict) -> int:
+        """Count non-NULL science fields — used to pick the best row."""
+        return sum(1 for k in ("pl_rade", "pl_masse", "st_rad", "st_lum", "pl_orbsmax")
                    if r.get(k) is not None)
 
-    def _parse(row):
+    def _parse(row: dict) -> dict:
         lum_log = row.get("st_lum")
         return {
             "pl_name"    : row.get("pl_name"),
@@ -114,18 +121,72 @@ def fetch_nasa_exoplanet_data(planet_name: str) -> dict | None:
             "pl_orbsmax" : float(row["pl_orbsmax"]) if row.get("pl_orbsmax") is not None else None,
         }
 
-    for adql in adql_candidates:
+    COLS = "pl_name,pl_rade,pl_masse,st_rad,st_lum,pl_orbsmax"
+
+    def _run(adql: str):
+        """Fire one ADQL query; return list of rows or []."""
         try:
-            resp = requests.get(NASA_TAP_URL,
-                                params={"query": adql, "format": "json"},
-                                timeout=12)
-            resp.raise_for_status()
-            rows = resp.json()
-            if rows:
-                return _parse(max(rows, key=_score))
+            r = requests.get(NASA_TAP_URL,
+                             params={"query": adql, "format": "json"},
+                             timeout=15)
+            r.raise_for_status()
+            return r.json() or []
         except Exception:
-            continue
-    return None
+            return []
+
+    def _queries_for(token: str, table: str) -> list:
+        """
+        Build the four ADQL patterns for a given search token and table name.
+        No ORDER BY on nullable columns — sorting is done in Python.
+        """
+        t = _esc(token)
+        return [
+            f"SELECT {COLS} FROM {table} WHERE LOWER(pl_name)=LOWER('{t}')",
+            f"SELECT {COLS} FROM {table} WHERE LOWER(hostname)=LOWER('{t}')",
+            f"SELECT {COLS} FROM {table} WHERE LOWER(pl_name) LIKE LOWER('{t}%')",
+            f"SELECT {COLS} FROM {table} WHERE LOWER(hostname) LIKE LOWER('{t}%')",
+        ]
+
+    # ── Build normalised search tokens ────────────────────────────────────────
+    raw   = planet_name.strip()
+    tokens = [raw]                          # always try the input as-is first
+
+    # If it ends with a space + single letter (e.g. "Kepler-442 b"),
+    # also try: the host part alone, and the suffix-less compact form.
+    import re as _re
+    m = _re.match(r"^(.+?)\s+([a-zA-Z])$", raw)
+    if m:
+        host, letter = m.group(1), m.group(2)
+        tokens.append(host)                             # "Kepler-442"
+        tokens.append(host + letter)                   # "Kepler-442b"  (no space)
+        tokens.append(host + " " + letter.lower())     # normalised lower suffix
+        tokens.append(host + " " + letter.upper())
+    else:
+        # Input has no letter suffix — try appending a wildcard host strip
+        # in case the user typed something like "Kepler-442b" (no space)
+        m2 = _re.match(r"^(.+?)([a-zA-Z])$", raw)
+        if m2 and not raw[-2].isdigit() is False:
+            tokens.append(m2.group(1))                 # strip trailing letter
+            tokens.append(m2.group(1) + " " + m2.group(2))  # add space before letter
+
+    # De-duplicate while preserving order
+    seen, unique_tokens = set(), []
+    for tk in tokens:
+        if tk.lower() not in seen:
+            seen.add(tk.lower())
+            unique_tokens.append(tk)
+
+    # ── Run cascade: pscomppars first (best data density), then ps ───────────
+    # pscomppars = one aggregated row per planet (NASA's recommended table)
+    # ps         = one row per reference publication (more rows, more NULLs)
+    for token in unique_tokens:
+        for table in ("pscomppars", "ps"):
+            for adql in _queries_for(token, table):
+                rows = _run(adql)
+                if rows:
+                    return _parse(max(rows, key=_score))
+
+    return None   # every strategy exhausted
 
 
 # =============================================================================
