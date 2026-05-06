@@ -555,43 +555,68 @@ code {
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
-   BASE CONTAINERS — transparent so the animated background shows through
+   BASE CONTAINERS
+   Strategy: give the app a solid deep-space background on every known
+   Streamlit testid so the cosmic-drift overlay sits on top of it cleanly.
+   We do NOT use backdrop-filter on the root containers — blurring a
+   transparent element against a white/grey Streamlit default produces the
+   "frosted blur" blank-page artefact seen in some deployments.
 ════════════════════════════════════════════════════════════════════════════ */
-html, body, .stApp, [data-testid="stAppViewContainer"],
-[data-testid="stMain"], [data-testid="stHeader"], [data-testid="stBottom"],
-[data-testid="stDecoration"], section[data-testid="stSidebar"] ~ div, .main {
+
+/* Deep-space solid base — covers ALL Streamlit shell layers */
+html, body {
+    background: #02030a !important;
+    background-color: #02030a !important;
+}
+
+/* Cover every testid variant across Streamlit 1.28–1.45 */
+.stApp,
+[data-testid="stApp"],
+[data-testid="stAppViewContainer"],
+[data-testid="stMain"],
+[data-testid="stMainBlockContainer"],
+[data-testid="stHeader"],
+[data-testid="stBottom"],
+[data-testid="stDecoration"],
+[data-testid="stToolbar"],
+section[data-testid="stSidebar"] ~ div,
+.main {
     background: transparent !important;
     background-color: transparent !important;
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
-   GLASSMORPHISM — MAIN CONTENT PANEL
+   MAIN CONTENT PANEL
+   Use a solid semi-transparent dark background — NO backdrop-filter blur.
+   Blur on a container that sits over an animated fixed background causes
+   the "frosted blank" rendering bug on cloud deployments.
 ════════════════════════════════════════════════════════════════════════════ */
-.main .block-container {
-    background: rgba(3, 7, 22, 0.46) !important;
-    backdrop-filter:          blur(22px) saturate(170%) brightness(0.95) !important;
-    -webkit-backdrop-filter:  blur(22px) saturate(170%) brightness(0.95) !important;
+.main .block-container,
+[data-testid="stMainBlockContainer"] {
+    background: rgba(3, 7, 22, 0.72) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     border-radius: 20px !important;
     padding: 2rem 2.5rem !important;
     margin-top: 0.6rem !important;
     border: 1px solid rgba(0, 212, 255, 0.15) !important;
     box-shadow:
-        0 12px 48px rgba(0, 0, 0, 0.60),
-        inset 0  1px 0 rgba(255, 255, 255, 0.07),
-        inset 0 -1px 0 rgba(0, 212, 255, 0.1) !important;
+        0 12px 48px rgba(0, 0, 0, 0.65),
+        inset 0  1px 0 rgba(255, 255, 255, 0.06),
+        inset 0 -1px 0 rgba(0, 212, 255, 0.08) !important;
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
    GLASSMORPHISM — SIDEBAR
 ════════════════════════════════════════════════════════════════════════════ */
 section[data-testid="stSidebar"] {
-    background: rgba(3, 7, 22, 0.72) !important;
-    backdrop-filter:         blur(28px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
-    border-right: 1px solid rgba(0, 212, 255, 0.14) !important;
+    background: rgba(3, 7, 22, 0.92) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-right: 1px solid rgba(0, 212, 255, 0.18) !important;
     box-shadow:
-        4px 0 36px rgba(0, 0, 0, 0.60),
-        inset -1px 0 0 rgba(0, 212, 255, 0.08) !important;
+        4px 0 36px rgba(0, 0, 0, 0.70),
+        inset -1px 0 0 rgba(0, 212, 255, 0.10) !important;
     min-width: 268px !important;
     max-width: 325px !important;
     transform: none !important;
@@ -610,9 +635,9 @@ button[data-testid="collapsedControl"],
    GLASSMORPHISM — MATPLOTLIB FIGURE WRAPPERS
 ════════════════════════════════════════════════════════════════════════════ */
 div[data-testid="stPyplotRootElement"] {
-    background: rgba(2, 6, 18, 0.50) !important;
-    backdrop-filter:         blur(12px) saturate(140%) !important;
-    -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
+    background: rgba(2, 6, 18, 0.82) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     border-radius: 16px !important;
     border: 1px solid rgba(0, 212, 255, 0.20) !important;
     padding: 8px !important;
@@ -629,17 +654,17 @@ div[data-testid="stInfo"],
 div[data-testid="stSuccess"],
 div[data-testid="stWarning"],
 div[data-testid="stError"] {
-    background: rgba(5, 12, 30, 0.62) !important;
-    backdrop-filter:         blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
+    background: rgba(5, 12, 30, 0.90) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     border: 1px solid rgba(0, 212, 255, 0.22) !important;
     border-radius: 12px !important;
 }
 
 div[data-testid="stSpinner"] > div {
-    background: rgba(3, 9, 24, 0.70) !important;
-    backdrop-filter:         blur(14px) !important;
-    -webkit-backdrop-filter: blur(14px) !important;
+    background: rgba(3, 9, 24, 0.90) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     border-radius: 10px !important;
     border: 1px solid rgba(0, 212, 255, 0.18) !important;
 }
@@ -648,9 +673,9 @@ div[data-testid="stSpinner"] > div {
    GLASSMORPHISM — STAT CARDS
 ════════════════════════════════════════════════════════════════════════════ */
 .stat-card {
-    background:              rgba(5, 12, 32, 0.58);
-    backdrop-filter:         blur(20px) saturate(160%);
-    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    background:              rgba(5, 12, 32, 0.88);
+    backdrop-filter:         none;
+    -webkit-backdrop-filter: none;
     border: 1px solid rgba(0, 212, 255, 0.24);
     border-radius: 14px;
     padding: 15px 22px;
@@ -706,9 +731,9 @@ html, body, [class*="css"] {
    GLASSMORPHISM — WIDGET OVERRIDES
 ════════════════════════════════════════════════════════════════════════════ */
 .stTextInput > div > div > input {
-    background:              rgba(4, 11, 30, 0.75) !important;
-    backdrop-filter:         blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
+    background:              rgba(4, 11, 30, 0.95) !important;
+    backdrop-filter:         none !important;
+    -webkit-backdrop-filter: none !important;
     border: 1px solid rgba(0, 212, 255, 0.55) !important;
     color: #c8d8f0 !important;
     font-family: 'Space Mono', monospace !important;
@@ -730,9 +755,9 @@ html, body, [class*="css"] {
 
 /* Primary action button - Terminal style */
 .stButton > button[kind="primary"] {
-    background:              rgba(0, 212, 255, 0.07) !important;
-    backdrop-filter:         blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
+    background:              rgba(0, 212, 255, 0.10) !important;
+    backdrop-filter:         none !important;
+    -webkit-backdrop-filter: none !important;
     border: 1px solid rgba(0, 212, 255, 0.44) !important;
     color: #00ffff !important;
     font-family: 'Space Mono', monospace !important;
@@ -755,9 +780,9 @@ html, body, [class*="css"] {
 
 /* Secondary (default) buttons */
 .stButton > button:not([kind="primary"]) {
-    background:              rgba(8, 20, 50, 0.58) !important;
-    backdrop-filter:         blur(10px) !important;
-    -webkit-backdrop-filter: blur(10px) !important;
+    background:              rgba(8, 20, 50, 0.90) !important;
+    backdrop-filter:         none !important;
+    -webkit-backdrop-filter: none !important;
     border: 1px solid rgba(0, 212, 255, 0.40) !important;
     color: #00ccaa !important;
     font-family: 'Space Mono', monospace !important;
@@ -783,8 +808,8 @@ div.row-widget.stRadio > div {
     justify-content: center; margin-bottom: 10px;
 }
 div.row-widget.stRadio > div > label {
-    background: rgba(5, 12, 32, 0.60) !important;
-    backdrop-filter: blur(10px) !important;
+    background: rgba(5, 12, 32, 0.92) !important;
+    backdrop-filter: none !important;
     border: 1px solid rgba(0, 212, 255, 0.32) !important;
     border-radius: 8px !important;
     padding: 4px 14px !important;
