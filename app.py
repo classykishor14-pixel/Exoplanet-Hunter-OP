@@ -31,7 +31,6 @@ import os
 import base64
 
 def set_bg_image():
-    # Get the directory where app.py lives
     current_dir = os.path.dirname(os.path.abspath(__file__))
     bg_path = os.path.join(current_dir, "BG.png")
     
@@ -41,15 +40,34 @@ def set_bg_image():
     st.markdown(
         f"""
         <style>
-        .cosmic-drift {{
+        /* Target ALL possible Streamlit background containers */
+        .stApp {{
             background-image: url("data:image/png;base64,{encoded_string}") !important;
+            background-size: cover !important;
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+            background-attachment: fixed !important;
+        }}
+        
+        [data-testid="stAppViewContainer"] {{
+            background-image: url("data:image/png;base64,{encoded_string}") !important;
+            background-size: cover !important;
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+        }}
+
+        [data-testid="stHeader"] {{
+            background: transparent !important;
+        }}
+
+        [data-testid="stSidebar"] {{
+            background: rgba(0, 0, 0, 0.6) !important;
         }}
         </style>
         """,
         unsafe_allow_html=True
     )
 
-# Call it without arguments
 set_bg_image()
 # -------------------------------------
 
