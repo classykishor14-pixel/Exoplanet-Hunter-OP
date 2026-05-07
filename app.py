@@ -16,6 +16,7 @@ NEW FEATURES:
 """
 
 import streamlit as st
+import base64
 
 # set_page_config MUST be the absolute first Streamlit call in the file
 st.set_page_config(
@@ -24,6 +25,27 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# --- NEW BACKGROUND INJECTION CODE ---
+def set_bg_image(image_file):
+    with open(image_file, "rb") as f:
+        encoded_string = base64.b64encode(f.read()).decode()
+    
+    # We target your existing .cosmic-drift class and use !important to override BG.png
+    st.markdown(
+        f"""
+        <style>
+        .cosmic-drift {{
+            background-image: url("data:image/jpeg;base64,{encoded_string}") !important;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+# Apply the BG.jpg image
+set_bg_image("BG.jpg")
+# -------------------------------------
 
 import warnings
 import shutil
