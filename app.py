@@ -40,7 +40,6 @@ def set_bg_image():
     st.markdown(
         f"""
         <style>
-        /* Target ALL possible Streamlit background containers */
         .stApp {{
             background-image: url("data:image/png;base64,{encoded_string}") !important;
             background-size: cover !important;
@@ -50,6 +49,14 @@ def set_bg_image():
         }}
         
         [data-testid="stAppViewContainer"] {{
+            background-image: url("data:image/png;base64,{encoded_string}") !important;
+            background-size: cover !important;
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+        }}
+
+        /* Override the existing cosmic-drift background */
+        .cosmic-drift {{
             background-image: url("data:image/png;base64,{encoded_string}") !important;
             background-size: cover !important;
             background-position: center !important;
