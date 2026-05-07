@@ -40,35 +40,19 @@ def set_bg_image():
     st.markdown(
         f"""
         <style>
-        .stApp {{
+        .stApp,
+        [data-testid="stAppViewContainer"],
+        .cosmic-drift {{
+            background-color: #02030a !important;
             background-image: url("data:image/png;base64,{encoded_string}") !important;
             background-size: cover !important;
             background-position: center !important;
             background-repeat: no-repeat !important;
             background-attachment: fixed !important;
         }}
-        
-        [data-testid="stAppViewContainer"] {{
-            background-image: url("data:image/png;base64,{encoded_string}") !important;
-            background-size: cover !important;
-            background-position: center !important;
-            background-repeat: no-repeat !important;
-        }}
-
-        /* Override the existing cosmic-drift background */
-        .cosmic-drift {{
-            background-image: url("data:image/png;base64,{encoded_string}") !important;
-            background-size: cover !important;
-            background-position: center !important;
-            background-repeat: no-repeat !important;
-        }}
 
         [data-testid="stHeader"] {{
             background: transparent !important;
-        }}
-
-        [data-testid="stSidebar"] {{
-            background: rgba(0, 0, 0, 0.6) !important;
         }}
         </style>
         """,
@@ -375,8 +359,7 @@ st.markdown("""
     animation: cosmicZoom 28s ease-in-out infinite alternate;
     will-change: transform;
     background-color: #02030a;
-    background-image: url('BG.png') !important;
-    background-size: cover !important;  
+    background-size: cover !important;
     background-position: center !important;
     background-repeat: no-repeat !important;
     background-attachment: fixed !important;
