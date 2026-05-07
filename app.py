@@ -54,6 +54,15 @@ def set_bg_image():
         [data-testid="stHeader"] {{
             background: transparent !important;
         }}
+
+        [data-testid="collapsedControl"],
+        [data-testid="stSidebarCollapseButton"] {{
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            color: white !important;
+            z-index: 999 !important;
+        }}
         </style>
         """,
         unsafe_allow_html=True
