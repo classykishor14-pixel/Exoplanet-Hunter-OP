@@ -43,8 +43,8 @@ def set_bg_image():
         unsafe_allow_html=True
     )
 
-# Apply the BG.jpg image
-set_bg_image("BG.jpg")
+# Apply the BG.png image
+set_bg_image("BG.png")
 # -------------------------------------
 
 import warnings
