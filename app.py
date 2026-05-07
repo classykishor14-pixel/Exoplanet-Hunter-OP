@@ -27,7 +27,7 @@ st.set_page_config(
 )
 
 # --- NEW BACKGROUND INJECTION CODE ---
-def set_bg_image("BG.png"):
+def set_bg_image():
     with open("BG.png", "rb") as f:
         encoded_string = base64.b64encode(f.read()).decode()
     
