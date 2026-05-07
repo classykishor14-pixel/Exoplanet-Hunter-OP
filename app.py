@@ -27,8 +27,8 @@ st.set_page_config(
 )
 
 # --- NEW BACKGROUND INJECTION CODE ---
-def set_bg_image("BG.jpg"):
-    with open("BG.jpg", "rb") as f:
+def set_bg_image("BG.png"):
+    with open("BG.png", "rb") as f:
         encoded_string = base64.b64encode(f.read()).decode()
     
     # We target your existing .cosmic-drift class and use !important to override BG.png
@@ -36,7 +36,7 @@ def set_bg_image("BG.jpg"):
         f"""
         <style>
         .cosmic-drift {{
-            background-image: url("data:image/jpeg;base64,{encoded_string}") !important;
+            background-image: url("data:image/png;base64,{encoded_string}") !important;
         }}
         </style>
         """,
