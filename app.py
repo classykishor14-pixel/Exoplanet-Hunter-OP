@@ -27,11 +27,17 @@ st.set_page_config(
 )
 
 # --- NEW BACKGROUND INJECTION CODE ---
+import os
+import base64
+
 def set_bg_image():
-    with open("BG.png", "rb") as f:
-        encoded_string = base64.b64encode(f.read()).decode()
+    # Get the directory where app.py lives
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    bg_path = os.path.join(current_dir, "BG.png")
     
-    # We target your existing .cosmic-drift class and use !important to override BG.png
+    with open(bg_path, "rb") as f:
+        encoded_string = base64.b64encode(f.read()).decode()
+
     st.markdown(
         f"""
         <style>
@@ -43,8 +49,8 @@ def set_bg_image():
         unsafe_allow_html=True
     )
 
-# Apply the BG.png image
-set_bg_image("BG.png")
+# Call it without arguments
+set_bg_image()
 # -------------------------------------
 
 import warnings
