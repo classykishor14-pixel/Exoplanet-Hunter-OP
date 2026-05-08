@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import {
   useFonts,
@@ -26,12 +27,14 @@ export default function App() {
   }
 
   return (
-    <View style={styles.root}>
-      <StatusBar style="light" backgroundColor={Colors.background} />
-      <NavigationContainer>
-        <AppNavigator />
-      </NavigationContainer>
-    </View>
+    <SafeAreaProvider>
+      <View style={styles.root}>
+        <StatusBar style="light" backgroundColor={Colors.background} />
+        <NavigationContainer>
+          <AppNavigator />
+        </NavigationContainer>
+      </View>
+    </SafeAreaProvider>
   );
 }
 
