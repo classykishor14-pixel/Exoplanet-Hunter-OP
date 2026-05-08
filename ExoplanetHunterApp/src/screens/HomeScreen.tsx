@@ -1,115 +1,97 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  StatusBar,
   Animated,
+  TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import { Colors, FontFamily, Spacing } from '../theme';
+import { Colors, FontFamily, Spacing, BorderRadius } from '../theme';
+import Starfield from '../components/Starfield';
+import { useNavigation } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
-  const pulseAnim = React.useRef(new Animated.Value(0.4)).current;
-  const glowAnim = React.useRef(new Animated.Value(0)).current;
+  const navigation = useNavigation<any>();
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  React.useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 0.4,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
-
+  useEffect(() => {
+    // Button glow loop
     Animated.loop(
       Animated.sequence([
         Animated.timing(glowAnim, {
           toValue: 1,
-          duration: 3000,
-          useNativeDriver: true,
+          duration: 1500,
+          useNativeDriver: false, // Box shadow cannot use native driver
         }),
         Animated.timing(glowAnim, {
           toValue: 0,
-          duration: 3000,
-          useNativeDriver: true,
+          duration: 1500,
+          useNativeDriver: false,
         }),
-      ]),
+      ])
     ).start();
-  }, [pulseAnim, glowAnim]);
 
-  const ringScale = glowAnim.interpolate({
+    // Initial fade in for content
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 1000,
+      delay: 500,
+      useNativeDriver: true,
+    }).start();
+  }, [glowAnim, fadeAnim]);
+
+  const buttonGlow = glowAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.9, 1.05],
+    outputRange: [0, 15],
+  });
+
+  const buttonBorder = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [Colors.accentDim, Colors.accent],
   });
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+      {/* 3D Animated Starfield Background */}
+      <Starfield />
 
-      {/* Stars background dots */}
-      <View style={styles.starsContainer} pointerEvents="none">
-        {Array.from({ length: 40 }).map((_, i) => (
+      {/* Foreground Content */}
+      <Animated.View style={[styles.content, { opacity: fadeAnim }]} pointerEvents="box-none">
+        <View style={styles.heroSection}>
+          {/* Logo / Title */}
+          <Text style={styles.title}>EXOPLANET</Text>
+          <Text style={styles.subtitle}>H U N T E R</Text>
+          <View style={styles.accentLine} />
+          
+          {/* Tagline */}
+          <Text style={styles.tagline}>Discover Worlds Beyond</Text>
+        </View>
+
+        {/* Action Section */}
+        <View style={styles.actionSection}>
           <Animated.View
-            key={i}
             style={[
-              styles.star,
+              styles.buttonWrapper,
               {
-                top: `${Math.random() * 100}%` as any,
-                left: `${Math.random() * 100}%` as any,
-                width: Math.random() > 0.7 ? 3 : 2,
-                height: Math.random() > 0.7 ? 3 : 2,
-                opacity: pulseAnim,
+                shadowRadius: buttonGlow,
+                borderColor: buttonBorder,
               },
             ]}
-          />
-        ))}
-      </View>
-
-      <View style={styles.content}>
-        {/* Animated planet ring */}
-        <Animated.View
-          style={[styles.planetRing, { transform: [{ scale: ringScale }] }]}
-        />
-        <Animated.View
-          style={[styles.planet, { opacity: pulseAnim }]}
-        />
-
-        {/* Title */}
-        <Text style={styles.title}>EXOPLANET</Text>
-        <Text style={styles.subtitle}>H U N T E R</Text>
-        <View style={styles.accentLine} />
-        <Text style={styles.tagline}>Explore worlds beyond our solar system</Text>
-
-        {/* Stats row */}
-        <View style={styles.statsRow}>
-          {[
-            { label: 'Confirmed', value: '5,600+' },
-            { label: 'Candidates', value: '9,900+' },
-            { label: 'Stars', value: '200B+' },
-          ].map((stat) => (
-            <View key={stat.label} style={styles.statCard}>
-              <Text style={styles.statValue}>{stat.value}</Text>
-              <Text style={styles.statLabel}>{stat.label}</Text>
-            </View>
-          ))}
+          >
+            <TouchableOpacity
+              style={styles.button}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('Search')}
+            >
+              <Text style={styles.buttonText}>START EXPLORING</Text>
+            </TouchableOpacity>
+          </Animated.View>
         </View>
-
-        {/* Mission badge */}
-        <View style={styles.badge}>
-          <Animated.View style={[styles.badgeDot, { opacity: pulseAnim }]} />
-          <Text style={styles.badgeText}>LIVE MISSION DATA · NASA EXOPLANET ARCHIVE</Text>
-        </View>
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -119,132 +101,86 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  starsContainer: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: 'hidden',
-  },
-  star: {
-    position: 'absolute',
-    backgroundColor: Colors.text,
-    borderRadius: 99,
-  },
   content: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 100,
     paddingHorizontal: Spacing.lg,
-    gap: Spacing.md,
   },
-  planetRing: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    borderWidth: 2,
-    borderColor: Colors.accent,
-    position: 'absolute',
-    top: '15%',
-    opacity: 0.3,
-  },
-  planet: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: Colors.accentDim,
-    borderWidth: 2,
-    borderColor: Colors.accent,
-    marginBottom: Spacing.xl,
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 24,
-    elevation: 20,
+  heroSection: {
+    alignItems: 'center',
+    marginTop: 40,
   },
   title: {
     fontFamily: FontFamily.bold,
-    fontSize: 36,
+    fontSize: 42,
     color: Colors.accent,
-    letterSpacing: 10,
+    letterSpacing: 8,
     textShadowColor: Colors.accent,
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 16,
+    textShadowRadius: 20,
+    textAlign: 'center',
   },
   subtitle: {
     fontFamily: FontFamily.regular,
-    fontSize: 22,
-    color: Colors.text,
-    letterSpacing: 14,
+    fontSize: 24,
+    color: Colors.white,
+    letterSpacing: 16,
     marginTop: -8,
+    textAlign: 'center',
   },
   accentLine: {
-    width: 80,
-    height: 2,
+    width: 100,
+    height: 3,
     backgroundColor: Colors.accent,
     borderRadius: 2,
-    marginVertical: Spacing.sm,
+    marginVertical: Spacing.lg,
     shadowColor: Colors.accent,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowRadius: 10,
+    elevation: 10,
   },
   tagline: {
     fontFamily: FontFamily.regular,
-    fontSize: 12,
-    color: Colors.textMuted,
-    letterSpacing: 1,
+    fontSize: 16,
+    color: Colors.accent,
+    letterSpacing: 4,
     textAlign: 'center',
-    marginBottom: Spacing.lg,
+    textShadowColor: Colors.accentDim,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
+    textTransform: 'uppercase',
   },
-  statsRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginVertical: Spacing.md,
-  },
-  statCard: {
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 12,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
+  actionSection: {
+    width: '100%',
     alignItems: 'center',
-    minWidth: (width - Spacing.lg * 2 - Spacing.sm * 2) / 3,
+    marginBottom: 40,
   },
-  statValue: {
+  buttonWrapper: {
+    borderWidth: 2,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(0, 255, 255, 0.05)',
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  button: {
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xxl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonText: {
     fontFamily: FontFamily.bold,
     fontSize: 16,
     color: Colors.accent,
-  },
-  statLabel: {
-    fontFamily: FontFamily.regular,
-    fontSize: 9,
-    color: Colors.textMuted,
-    letterSpacing: 1,
-    marginTop: 2,
-    textTransform: 'uppercase',
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    backgroundColor: Colors.surfaceLight,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 99,
-    paddingVertical: 6,
-    paddingHorizontal: Spacing.md,
-    marginTop: Spacing.md,
-  },
-  badgeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.success,
-  },
-  badgeText: {
-    fontFamily: FontFamily.regular,
-    fontSize: 9,
-    color: Colors.textMuted,
-    letterSpacing: 1,
+    letterSpacing: 3,
+    textShadowColor: Colors.accent,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 5,
   },
 });
