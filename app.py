@@ -81,6 +81,7 @@ def set_bg_image():
     )
 
 set_bg_image()
+# Fixed toggle button (no JS here)
 st.markdown("""
 <div id="sb-toggle" style="
     position: fixed;
@@ -97,22 +98,21 @@ st.markdown("""
     font-size: 18px;
     user-select: none;
 ">☰</div>
+""", unsafe_allow_html=True)
 
+# JS injected via component (can access parent DOM)
+import streamlit.components.v1 as components
+components.html("""
 <script>
-(function() {
-    function attachToggle() {
-        var toggler = document.getElementById("sb-toggle");
-        if (!toggler) { setTimeout(attachToggle, 300); return; }
-        toggler.addEventListener("click", function() {
-            var btn = document.querySelector('[data-testid="stSidebarCollapseButton"] button')
-                   || document.querySelector('[data-testid="collapsedControl"] button');
-            if (btn) { btn.click(); }
-        });
-    }
-    setTimeout(attachToggle, 500);
+(function tryAttach() {
+    var btn = window.parent.document.querySelector('[data-testid="stSidebarCollapseButton"] button')
+           || window.parent.document.querySelector('[data-testid="collapsedControl"] button');
+    var toggler = window.parent.document.getElementById("sb-toggle");
+    if (!toggler || !btn) { setTimeout(tryAttach, 400); return; }
+    toggler.addEventListener("click", function() { btn.click(); });
 })();
 </script>
-""", unsafe_allow_html=True)
+""", height=0)
 # -------------------------------------
 
 import warnings
