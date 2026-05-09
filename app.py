@@ -81,6 +81,29 @@ def set_bg_image():
     )
 
 set_bg_image()
+st.markdown("""
+<style>
+/* Force the sidebar collapse button always visible */
+[data-testid="stSidebarCollapseButton"] button,
+[data-testid="collapsedControl"] button {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    width: 2rem !important;
+    height: 2rem !important;
+    background: rgba(0,255,204,0.15) !important;
+    border: 1px solid #00ffcc !important;
+    border-radius: 4px !important;
+    color: #00ffcc !important;
+}
+[data-testid="stSidebarCollapseButton"] svg,
+[data-testid="collapsedControl"] svg {
+    fill: #00ffcc !important;
+    color: #00ffcc !important;
+}
+</style>
+""", unsafe_allow_html=True)
 # -------------------------------------
 
 import warnings
