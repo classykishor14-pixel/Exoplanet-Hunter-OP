@@ -55,39 +55,25 @@ def set_bg_image():
             background: transparent !important;
         }}
 
-        [data-testid="collapsedControl"],
+        [data-testid="collapsedControl"] {{
+             display: block !important;
+             visibility: visible !important;
+             opacity: 1 !important;
+            z-index: 99999 !important;
+            background: rgba(0, 0, 0, 0.6) !important;
+            color: #00ffcc !important;
+            border-radius: 4px !important;
+        }}
         [data-testid="stSidebarCollapseButton"] {{
             display: block !important;
             visibility: visible !important;
             opacity: 1 !important;
-            color: white !important;
-            z-index: 999 !important;
-        }}
+            z-index: 99999 !important;
+            color: #00ffcc !important;
+            background: rgba(0, 0, 0, 0.6) !important;}}
         /* Nuclear option - force sidebar toggle visible */
         section[data-testid="stSidebar"] > div:first-child {{
             display: block !important;
-        }}
-
-        button[data-testid="stBaseButton-headerNoPadding"] {{
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            position: fixed !important;
-            top: 0.5rem !important;
-            left: 0.5rem !important;
-            z-index: 99999 !important;
-            background: rgba(0,0,0,0.5) !important;
-            color: white !important;
-        }}
-
-        /* Also try these selectors */
-        .st-emotion-cache-1egp75f,
-        .st-emotion-cache-czk5ss,
-        [data-testid="stSidebarNavItems"] + div button {{
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            z-index: 99999 !important;
         }}
         </style>
         """,
