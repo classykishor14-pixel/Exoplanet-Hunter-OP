@@ -738,7 +738,7 @@ if "hud_stellar_luminosity" not in st.session_state:
 if "hud_semi_major_axis" not in st.session_state:
     st.session_state.hud_semi_major_axis = 0.1
 
-# Render the Glassmorphism HUD via component injection
+# Render the Glassmorphism HUD via component injection with Interactive Charts
 hud_html = """
 <!DOCTYPE html>
 <html>
@@ -816,6 +816,25 @@ hud_html = """
     letter-spacing: 0.5px; text-transform: uppercase; font-family: 'Space Mono', monospace; }
 .divider-line { height: 1px; background: linear-gradient(90deg, rgba(0, 212, 255, 0.15), transparent);
     margin: 12px 0; }
+/* CHART PANEL STYLES */
+.hud-chart-panel { position: fixed; top: 120px; right: 28px; z-index: 9997; pointer-events: auto;
+    max-width: 380px; width: calc(100vw - 450px); }
+.hud-chart-container { position: relative; width: 100%; aspect-ratio: 1.6; margin-bottom: 16px; }
+canvas.hud-chart { display: block; width: 100%; height: 100%; cursor: crosshair;
+    background: rgba(0, 10, 20, 0.95); border-radius: 12px;
+    box-shadow: 0 0 24px rgba(0, 212, 255, 0.15), inset 0 0 16px rgba(0, 0, 0, 0.6); }
+.hud-chart-label { text-transform: uppercase; font-size: 0.65rem; font-weight: 700;
+    letter-spacing: 1.5px; color: rgba(0, 212, 255, 0.8); font-family: 'Space Mono', monospace;
+    margin-bottom: 8px; }
+.hud-tooltip { position: fixed; pointer-events: none; background: rgba(0, 20, 50, 0.95);
+    border: 1px solid rgba(0, 212, 255, 0.4); border-radius: 6px; padding: 8px 12px;
+    font-family: 'Space Mono', monospace; font-size: 0.68rem; color: #00d4ff;
+    display: none; z-index: 10000; box-shadow: 0 0 16px rgba(0, 212, 255, 0.2);
+    line-height: 1.4; }
+.hud-tooltip.active { display: block; }
+.hud-tooltip-row { margin: 2px 0; }
+.hud-tooltip-label { color: rgba(255, 255, 255, 0.6); display: inline; }
+.hud-tooltip-value { color: #00d4ff; font-weight: 700; display: inline; margin-left: 4px; }
 </style>
 </head>
 <body>
@@ -846,6 +865,28 @@ hud_html = """
     <div class="hud-status-indicator"><div class="hud-status-dot"></div> ENVIRONMENT OK</div>
   </div>
 </div>
+
+<!-- CHART PANELS -->
+<div class="hud-chart-panel">
+  <div class="hud-panel">
+    <div class="hud-chart-label">PHASE-FOLDED LIGHT CURVE</div>
+    <div class="hud-chart-container">
+      <canvas id="lightCurveChart" class="hud-chart"></canvas>
+    </div>
+    <div class="hud-chart-label">BLS PERIODOGRAM</div>
+    <div class="hud-chart-container">
+      <canvas id="blsChart" class="hud-chart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- TOOLTIP -->
+<div class="hud-tooltip" id="hud-tooltip">
+  <div class="hud-tooltip-row"><span class="hud-tooltip-label">PHASE:</span><span class="hud-tooltip-value" id="tt-phase">0.000 H</span></div>
+  <div class="hud-tooltip-row"><span class="hud-tooltip-label">FLUX:</span><span class="hud-tooltip-value" id="tt-flux">1.0000</span></div>
+  <div class="hud-tooltip-row"><span class="hud-tooltip-label">SNR:</span><span class="hud-tooltip-value" id="tt-snr">18.5×</span></div>
+</div>
+
 <div class="hud-telemetry-dashboard">
   <div class="hud-panel">
     <div class="hud-telemetry-grid">
@@ -860,7 +901,281 @@ hud_html = """
     </div>
   </div>
 </div>
+
 <script>
+// ============================================================================
+// INTERACTIVE CHART ENGINE
+// ============================================================================
+
+// Generate synthetic phase-folded transit data
+function generateLightCurveData(points = 120) {
+  const data = [];
+  const transitDepth = 0.0084; // 0.84%
+  const transitWidth = 0.15;
+  for (let i = 0; i < points; i++) {
+    const phase = (i / points) * 2 - 1; // -1 to 1
+    const transitDip = Math.exp(-Math.pow(phase / transitWidth, 2)) * -transitDepth;
+    const noise = (Math.random() - 0.5) * 0.0015;
+    data.push({ phase: phase * 12, flux: 1.0 + transitDip + noise });
+  }
+  return data;
+}
+
+// Generate synthetic BLS periodogram data
+function generateBLSData(points = 150) {
+  const data = [];
+  const peakPeriod = 0.84;
+  for (let i = 0; i < points; i++) {
+    const period = 0.5 + (i / points) * 8;
+    const distance = Math.abs(period - peakPeriod);
+    const power = Math.max(0.1, 4.5 * Math.exp(-Math.pow(distance / 0.5, 2)));
+    data.push({ period: period, power: power });
+  }
+  return data;
+}
+
+const lcData = generateLightCurveData();
+const blsData = generateBLSData();
+
+// Chart rendering functions
+function drawLightCurve(canvas, data) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.offsetWidth;
+  const h = canvas.offsetHeight;
+  canvas.width = w * window.devicePixelRatio;
+  canvas.height = h * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+  // Background
+  ctx.fillStyle = 'rgba(0, 10, 20, 0.95)';
+  ctx.fillRect(0, 0, w, h);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(0, 212, 255, 0.08)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = (h / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+
+  // Calculate bounds
+  const minPhase = Math.min(...data.map(d => d.phase));
+  const maxPhase = Math.max(...data.map(d => d.phase));
+  const minFlux = Math.min(...data.map(d => d.flux));
+  const maxFlux = Math.max(...data.map(d => d.flux));
+  const margin = 40;
+
+  // Draw data as cyan glowing line
+  ctx.strokeStyle = '#00d4ff';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  
+  // Glow effect
+  ctx.shadowColor = 'rgba(0, 212, 255, 0.6)';
+  ctx.shadowBlur = 8;
+  
+  ctx.beginPath();
+  for (let i = 0; i < data.length; i++) {
+    const x = margin + ((data[i].phase - minPhase) / (maxPhase - minPhase)) * (w - 2 * margin);
+    const y = h - margin - ((data[i].flux - minFlux) / (maxFlux - minFlux)) * (h - 2 * margin);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.shadowColor = 'transparent';
+
+  // Highlight transit dip with crimson
+  ctx.strokeStyle = '#ff4f6e';
+  ctx.lineWidth = 3;
+  ctx.shadowColor = 'rgba(255, 79, 110, 0.5)';
+  ctx.shadowBlur = 12;
+  const transitPoints = data.filter(d => Math.abs(d.phase) < 2);
+  ctx.beginPath();
+  for (let i = 0; i < transitPoints.length; i++) {
+    const x = margin + ((transitPoints[i].phase - minPhase) / (maxPhase - minPhase)) * (w - 2 * margin);
+    const y = h - margin - ((transitPoints[i].flux - minFlux) / (maxFlux - minFlux)) * (h - 2 * margin);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.shadowColor = 'transparent';
+
+  // Axes labels
+  ctx.fillStyle = 'rgba(0, 212, 255, 0.6)';
+  ctx.font = '11px "Space Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('PHASE [HOURS]', w / 2, h - 10);
+  ctx.save();
+  ctx.translate(10, h / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.fillText('FLUX', 0, 0);
+  ctx.restore();
+
+  return { margin, minPhase, maxPhase, minFlux, maxFlux, w, h, data };
+}
+
+function drawBLS(canvas, data) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.offsetWidth;
+  const h = canvas.offsetHeight;
+  canvas.width = w * window.devicePixelRatio;
+  canvas.height = h * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+  // Background
+  ctx.fillStyle = 'rgba(0, 10, 20, 0.95)';
+  ctx.fillRect(0, 0, w, h);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(0, 212, 255, 0.08)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = (h / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+
+  const minPeriod = Math.min(...data.map(d => d.period));
+  const maxPeriod = Math.max(...data.map(d => d.period));
+  const maxPower = Math.max(...data.map(d => d.power));
+  const margin = 40;
+
+  // BLS periodogram as cyan glowing line
+  ctx.strokeStyle = '#00d4ff';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.shadowColor = 'rgba(0, 212, 255, 0.7)';
+  ctx.shadowBlur = 10;
+  
+  ctx.beginPath();
+  for (let i = 0; i < data.length; i++) {
+    const x = margin + ((data[i].period - minPeriod) / (maxPeriod - minPeriod)) * (w - 2 * margin);
+    const y = h - margin - (data[i].power / maxPower) * (h - 2 * margin);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Peak indicator (crimson)
+  const peakIdx = data.reduce((maxIdx, d, i) => d.power > data[maxIdx].power ? i : maxIdx, 0);
+  const peakPeriod = data[peakIdx].period;
+  const peakPower = data[peakIdx].power;
+  const px = margin + ((peakPeriod - minPeriod) / (maxPeriod - minPeriod)) * (w - 2 * margin);
+  const py = h - margin - (peakPower / maxPower) * (h - 2 * margin);
+  
+  ctx.fillStyle = '#ff4f6e';
+  ctx.shadowColor = 'rgba(255, 79, 110, 0.6)';
+  ctx.shadowBlur = 14;
+  ctx.beginPath();
+  ctx.arc(px, py, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+
+  // Axis labels
+  ctx.fillStyle = 'rgba(0, 212, 255, 0.6)';
+  ctx.font = '11px "Space Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('PERIOD [DAYS]', w / 2, h - 10);
+  ctx.save();
+  ctx.translate(10, h / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.fillText('BLS POWER', 0, 0);
+  ctx.restore();
+
+  return { margin, minPeriod, maxPeriod, maxPower, w, h, data };
+}
+
+// Initialize charts
+const lcCanvas = document.getElementById('lightCurveChart');
+const blsCanvas = document.getElementById('blsChart');
+let lcMeta, blsMeta;
+
+function initCharts() {
+  lcMeta = drawLightCurve(lcCanvas, lcData);
+  blsMeta = drawBLS(blsCanvas, blsData);
+}
+
+// Hover tracking & crosshair
+const tooltip = document.getElementById('hud-tooltip');
+let crosshairX = null;
+let crosshairY = null;
+
+function handleChartHover(e, canvas, meta, isLC) {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  
+  if (x < 0 || x > rect.width || y < 0 || y > rect.height) {
+    tooltip.classList.remove('active');
+    return;
+  }
+
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio;
+  const canvasX = (x / rect.width) * canvas.width;
+  const canvasY = (y / rect.height) * canvas.height;
+
+  // Redraw chart with crosshair
+  if (isLC) {
+    lcMeta = drawLightCurve(lcCanvas, lcData);
+  } else {
+    blsMeta = drawBLS(blsCanvas, blsData);
+  }
+
+  // Draw crosshair
+  ctx.strokeStyle = 'rgba(0, 212, 255, 0.5)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([2, 2]);
+  ctx.beginPath();
+  ctx.moveTo(canvasX / dpr, 0);
+  ctx.lineTo(canvasX / dpr, rect.height);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Find nearest data point
+  const normX = ((canvasX / dpr) - meta.margin) / (rect.width - 2 * meta.margin);
+  let nearest = null;
+  let minDist = Infinity;
+
+  meta.data.forEach(d => {
+    const dataX = isLC ? ((d.phase - meta.minPhase) / (meta.maxPhase - meta.minPhase))
+                       : ((d.period - meta.minPeriod) / (meta.maxPeriod - meta.minPeriod));
+    const dist = Math.abs(dataX - normX);
+    if (dist < minDist) {
+      minDist = dist;
+      nearest = d;
+    }
+  });
+
+  if (nearest && minDist < 0.05) {
+    // Update tooltip
+    document.getElementById('tt-phase').textContent = 
+      isLC ? nearest.phase.toFixed(3) + ' H' : nearest.period.toFixed(3) + ' D';
+    document.getElementById('tt-flux').textContent = nearest.flux.toFixed(4);
+    document.getElementById('tt-snr').textContent = (18.5 + Math.random() * 5).toFixed(1) + '×';
+    
+    tooltip.style.left = (e.clientX + 12) + 'px';
+    tooltip.style.top = (e.clientY - 60) + 'px';
+    tooltip.classList.add('active');
+  } else {
+    tooltip.classList.remove('active');
+  }
+}
+
+lcCanvas.addEventListener('mousemove', (e) => handleChartHover(e, lcCanvas, lcMeta, true));
+blsCanvas.addEventListener('mousemove', (e) => handleChartHover(e, blsCanvas, blsMeta, false));
+lcCanvas.addEventListener('mouseleave', () => tooltip.classList.remove('active'));
+blsCanvas.addEventListener('mouseleave', () => tooltip.classList.remove('active'));
+
+// Control event listeners
 document.getElementById('hud-stellar-lum').addEventListener('input', function(e) {
   document.getElementById('stellar-lum-val').textContent = parseFloat(e.target.value).toFixed(1) + ' ☉';
 });
@@ -870,6 +1185,10 @@ document.getElementById('hud-semi-axis').addEventListener('input', function(e) {
 document.getElementById('hud-target-input').addEventListener('input', function(e) {
   document.getElementById('telem-target').textContent = e.target.value.toUpperCase();
 });
+
+// Initialize on load
+window.addEventListener('load', initCharts);
+window.addEventListener('resize', initCharts);
 </script>
 </body>
 </html>
