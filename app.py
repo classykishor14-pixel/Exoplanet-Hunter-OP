@@ -738,168 +738,143 @@ if "hud_stellar_luminosity" not in st.session_state:
 if "hud_semi_major_axis" not in st.session_state:
     st.session_state.hud_semi_major_axis = 0.1
 
-# Render the Glassmorphism HUD Overlay
-st.markdown("""
-<!-- LEFT CONTROL PANEL -->
+# Render the Glassmorphism HUD via component injection
+hud_html = """
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+/* HUD OVERLAY STYLES */
+.hud-control-panel {
+    position: fixed;
+    left: 28px;
+    top: 120px;
+    width: 320px;
+    padding: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    pointer-events: auto;
+}
+.hud-panel {
+    position: relative;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    background: rgba(5, 12, 30, 0.85);
+    border: 1px solid rgba(0, 212, 255, 0.2);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 8px 32px rgba(0, 212, 255, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.hud-section-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 8px;
+    text-transform: uppercase; font-size: 0.75rem; font-weight: 700;
+    letter-spacing: 2px; color: #00d4ff; font-family: 'Space Mono', monospace;
+}
+.hud-input-label { text-transform: uppercase; font-size: 0.70rem; font-weight: 600;
+    letter-spacing: 1px; color: #ffffff; font-family: 'Space Mono', monospace; margin-bottom: 6px; }
+.hud-input-field { width: 100%; background: rgba(0, 20, 40, 0.6);
+    border: 1px solid rgba(0, 212, 255, 0.15); border-radius: 6px; padding: 10px 12px;
+    color: #00d4ff; font-family: 'Space Mono', monospace; font-size: 0.85rem;
+    text-transform: uppercase; box-sizing: border-box; transition: all 0.3s ease; }
+.hud-input-field:focus { outline: none; border-color: rgba(0, 212, 255, 0.5);
+    background: rgba(0, 30, 60, 0.8); box-shadow: 0 0 12px rgba(0, 212, 255, 0.2); }
+.hud-slider-group { display: flex; flex-direction: column; gap: 12px; }
+.hud-slider-label { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.hud-slider-label-text { text-transform: uppercase; font-size: 0.70rem; font-weight: 600;
+    letter-spacing: 1px; color: #ffffff; font-family: 'Space Mono', monospace; }
+.hud-slider-value { font-size: 0.75rem; color: #00d4ff; font-weight: 700; min-width: 70px;
+    text-align: right; font-family: 'Space Mono', monospace; }
+.hud-slider { width: 100%; height: 6px; background: linear-gradient(90deg, rgba(0, 212, 255, 0.1), rgba(0, 212, 255, 0.2));
+    border-radius: 3px; outline: none; -webkit-appearance: none; appearance: none; cursor: pointer; }
+.hud-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px;
+    border-radius: 50%; background: radial-gradient(circle at 30% 30%, #00ffff, #0099ff);
+    border: 2px solid rgba(0, 212, 255, 0.6); cursor: pointer;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.6), 0 0 16px rgba(0, 212, 255, 0.3); }
+.hud-slider::-webkit-slider-thumb:hover { box-shadow: 0 0 12px rgba(0, 212, 255, 0.9), 0 0 24px rgba(0, 212, 255, 0.5); }
+.hud-slider::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #00ffff, #0099ff);
+    border: 2px solid rgba(0, 212, 255, 0.6); cursor: pointer;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.6), 0 0 16px rgba(0, 212, 255, 0.3); }
+.hud-status-indicator { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px;
+    background: rgba(0, 212, 255, 0.1); border-radius: 4px; border: 1px solid rgba(0, 212, 255, 0.2);
+    font-size: 0.70rem; text-transform: uppercase; letter-spacing: 1px; color: #ffffff;
+    font-family: 'Space Mono', monospace; margin-bottom: 6px; }
+.hud-status-dot { width: 6px; height: 6px; border-radius: 50%; background: #00ffff;
+    box-shadow: 0 0 6px #00ffff; animation: hud-pulse 2s ease-in-out infinite; }
+@keyframes hud-pulse { 0%, 100% { opacity: 1; box-shadow: 0 0 6px #00ffff; }
+    50% { opacity: 0.5; box-shadow: 0 0 12px #00ffff; } }
+.hud-telemetry-dashboard { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    width: calc(100% - 40px); max-width: 1200px; z-index: 9998; pointer-events: auto; }
+.hud-telemetry-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 20px; width: 100%; }
+.hud-telemetry-item { display: flex; flex-direction: column; gap: 6px; }
+.hud-telemetry-label { text-transform: uppercase; font-size: 0.65rem; font-weight: 700;
+    letter-spacing: 1.5px; color: rgba(255, 255, 255, 0.7); font-family: 'Space Mono', monospace; }
+.hud-telemetry-value { font-size: 1rem; font-weight: 700; color: #00d4ff;
+    letter-spacing: 0.5px; text-transform: uppercase; font-family: 'Space Mono', monospace; }
+.divider-line { height: 1px; background: linear-gradient(90deg, rgba(0, 212, 255, 0.15), transparent);
+    margin: 12px 0; }
+</style>
+</head>
+<body>
 <div class="hud-control-panel">
-    <div class="hud-panel">
-        <!-- SECTION HEADER: SCAN CONTROLS -->
-        <div class="hud-section-header">SCAN CONTROLS</div>
-        
-        <!-- TARGET STAR DESIGNATOR INPUT -->
-        <div class="hud-input-group">
-            <label class="hud-input-label">TARGET STAR DESIGNATOR</label>
-            <input 
-                type="text" 
-                class="hud-input-field" 
-                id="hud-target-input"
-                placeholder="e.g. KEPLER-442 B"
-                value="KEPLER-10"
-                maxlength="32"
-            />
-        </div>
-        
-        <!-- DIVIDER LINE -->
-        <div style="height:1px;background:linear-gradient(90deg,rgba(0,212,255,0.15),transparent);margin:12px 0;"></div>
-        
-        <!-- STELLAR LUMINOSITY SLIDER -->
-        <div class="hud-slider-group">
-            <div class="hud-slider-label">
-                <span class="hud-slider-label-text">STELLAR LUMINOSITY</span>
-                <span class="hud-slider-value" id="stellar-lum-val">1.0 ☉</span>
-            </div>
-            <input 
-                type="range" 
-                class="hud-slider" 
-                id="hud-stellar-lum"
-                min="0.1" 
-                max="5.0" 
-                step="0.1" 
-                value="1.0"
-            />
-        </div>
-        
-        <!-- SEMI-MAJOR AXIS SLIDER -->
-        <div class="hud-slider-group">
-            <div class="hud-slider-label">
-                <span class="hud-slider-label-text">SEMI-MAJOR AXIS</span>
-                <span class="hud-slider-value" id="semi-axis-val">0.1 AU</span>
-            </div>
-            <input 
-                type="range" 
-                class="hud-slider" 
-                id="hud-semi-axis"
-                min="0.01" 
-                max="10.0" 
-                step="0.01" 
-                value="0.1"
-            />
-        </div>
-        
-        <!-- DIVIDER LINE -->
-        <div style="height:1px;background:linear-gradient(90deg,rgba(0,212,255,0.15),transparent);margin:12px 0;"></div>
-        
-        <!-- SECTION HEADER: SYSTEM STATUS -->
-        <div class="hud-section-header">SYSTEM STATUS</div>
-        
-        <!-- STATUS INDICATORS -->
-        <div style="display:grid;gap:8px;">
-            <div class="hud-status-indicator">
-                <div class="hud-status-dot"></div>
-                <span style="font-size:0.70rem;text-transform:uppercase;letter-spacing:1px;">ARCHIVE LINKED</span>
-            </div>
-            <div class="hud-status-indicator">
-                <div class="hud-status-dot"></div>
-                <span style="font-size:0.70rem;text-transform:uppercase;letter-spacing:1px;">DETECTION ENGINE</span>
-            </div>
-            <div class="hud-status-indicator">
-                <div class="hud-status-dot"></div>
-                <span style="font-size:0.70rem;text-transform:uppercase;letter-spacing:1px;">ENVIRONMENT OK</span>
-            </div>
-        </div>
+  <div class="hud-panel">
+    <div class="hud-section-header">SCAN CONTROLS</div>
+    <div><label class="hud-input-label">TARGET STAR DESIGNATOR</label>
+      <input type="text" class="hud-input-field" id="hud-target-input" placeholder="e.g. KEPLER-442 B" value="KEPLER-10" maxlength="32"/></div>
+    <div class="divider-line"></div>
+    <div class="hud-slider-group">
+      <div class="hud-slider-label">
+        <span class="hud-slider-label-text">STELLAR LUMINOSITY</span>
+        <span class="hud-slider-value" id="stellar-lum-val">1.0 ☉</span>
+      </div>
+      <input type="range" class="hud-slider" id="hud-stellar-lum" min="0.1" max="5.0" step="0.1" value="1.0"/>
     </div>
+    <div class="hud-slider-group">
+      <div class="hud-slider-label">
+        <span class="hud-slider-label-text">SEMI-MAJOR AXIS</span>
+        <span class="hud-slider-value" id="semi-axis-val">0.1 AU</span>
+      </div>
+      <input type="range" class="hud-slider" id="hud-semi-axis" min="0.01" max="10.0" step="0.01" value="0.1"/>
+    </div>
+    <div class="divider-line"></div>
+    <div class="hud-section-header">SYSTEM STATUS</div>
+    <div class="hud-status-indicator"><div class="hud-status-dot"></div> ARCHIVE LINKED</div>
+    <div class="hud-status-indicator"><div class="hud-status-dot"></div> DETECTION ENGINE</div>
+    <div class="hud-status-indicator"><div class="hud-status-dot"></div> ENVIRONMENT OK</div>
+  </div>
 </div>
-
-<!-- BOTTOM TELEMETRY DASHBOARD -->
 <div class="hud-telemetry-dashboard">
-    <div class="hud-panel">
-        <div class="hud-telemetry-grid">
-            <!-- OBSERVATION TARGET -->
-            <div class="hud-telemetry-item">
-                <div class="hud-telemetry-label">OBSERVATION TARGET</div>
-                <div class="hud-telemetry-value" id="telem-target">KEPLER-10</div>
-            </div>
-            
-            <!-- STELLAR RADIUS -->
-            <div class="hud-telemetry-item">
-                <div class="hud-telemetry-label">STELLAR RADIUS</div>
-                <div class="hud-telemetry-value" id="telem-radius">1.05 ☉</div>
-            </div>
-            
-            <!-- STELLAR TEMPERATURE -->
-            <div class="hud-telemetry-item">
-                <div class="hud-telemetry-label">STELLAR TEMPERATURE</div>
-                <div class="hud-telemetry-value" id="telem-temp">5757 K</div>
-            </div>
-            
-            <!-- ORBITAL PERIOD -->
-            <div class="hud-telemetry-item">
-                <div class="hud-telemetry-label">ORBITAL PERIOD</div>
-                <div class="hud-telemetry-value" id="telem-period">0.84 D</div>
-            </div>
-            
-            <!-- PLANET MASS -->
-            <div class="hud-telemetry-item">
-                <div class="hud-telemetry-label">PLANET MASS</div>
-                <div class="hud-telemetry-value" id="telem-mass">4.85 ⊕</div>
-            </div>
-            
-            <!-- TRANSIT DEPTH -->
-            <div class="hud-telemetry-item">
-                <div class="hud-telemetry-label">TRANSIT DEPTH</div>
-                <div class="hud-telemetry-value" id="telem-depth">0.84 %</div>
-            </div>
-            
-            <!-- EQUILIBRIUM TEMP -->
-            <div class="hud-telemetry-item">
-                <div class="hud-telemetry-label">EQUILIBRIUM TEMP</div>
-                <div class="hud-telemetry-value" id="telem-eq-temp">1360 K</div>
-            </div>
-            
-            <!-- SIGNAL-TO-NOISE -->
-            <div class="hud-telemetry-item">
-                <div class="hud-telemetry-label">SIGNAL-TO-NOISE</div>
-                <div class="hud-telemetry-value" id="telem-snr">24.6</div>
-            </div>
-        </div>
+  <div class="hud-panel">
+    <div class="hud-telemetry-grid">
+      <div class="hud-telemetry-item"><div class="hud-telemetry-label">OBSERVATION TARGET</div><div class="hud-telemetry-value" id="telem-target">KEPLER-10</div></div>
+      <div class="hud-telemetry-item"><div class="hud-telemetry-label">STELLAR RADIUS</div><div class="hud-telemetry-value" id="telem-radius">1.05 R☉</div></div>
+      <div class="hud-telemetry-item"><div class="hud-telemetry-label">STELLAR TEMP</div><div class="hud-telemetry-value" id="telem-temp">5757 K</div></div>
+      <div class="hud-telemetry-item"><div class="hud-telemetry-label">ORBITAL PERIOD</div><div class="hud-telemetry-value" id="telem-period">0.84 D</div></div>
+      <div class="hud-telemetry-item"><div class="hud-telemetry-label">PLANET MASS</div><div class="hud-telemetry-value" id="telem-mass">4.85 M⊕</div></div>
+      <div class="hud-telemetry-item"><div class="hud-telemetry-label">TRANSIT DEPTH</div><div class="hud-telemetry-value" id="telem-depth">0.84 %</div></div>
+      <div class="hud-telemetry-item"><div class="hud-telemetry-label">EQ. TEMPERATURE</div><div class="hud-telemetry-value" id="telem-eq-temp">1360 K</div></div>
+      <div class="hud-telemetry-item"><div class="hud-telemetry-label">SIGNAL-TO-NOISE</div><div class="hud-telemetry-value" id="telem-snr">24.6</div></div>
     </div>
+  </div>
 </div>
-
-<!-- HUD INTERACTIVE CONTROLS -->
 <script>
-// Update display values as sliders move
 document.getElementById('hud-stellar-lum').addEventListener('input', function(e) {
-    document.getElementById('stellar-lum-val').textContent = parseFloat(e.target.value).toFixed(1) + ' ☉';
+  document.getElementById('stellar-lum-val').textContent = parseFloat(e.target.value).toFixed(1) + ' ☉';
 });
-
 document.getElementById('hud-semi-axis').addEventListener('input', function(e) {
-    document.getElementById('semi-axis-val').textContent = parseFloat(e.target.value).toFixed(2) + ' AU';
+  document.getElementById('semi-axis-val').textContent = parseFloat(e.target.value).toFixed(2) + ' AU';
 });
-
-// Update telemetry values based on input
 document.getElementById('hud-target-input').addEventListener('input', function(e) {
-    document.getElementById('telem-target').textContent = e.target.value.toUpperCase();
-});
-
-// Initialize slider values on page load
-window.addEventListener('load', function() {
-    const lumVal = document.getElementById('hud-stellar-lum').value;
-    const axisVal = document.getElementById('hud-semi-axis').value;
-    document.getElementById('stellar-lum-val').textContent = parseFloat(lumVal).toFixed(1) + ' ☉';
-    document.getElementById('semi-axis-val').textContent = parseFloat(axisVal).toFixed(2) + ' AU';
+  document.getElementById('telem-target').textContent = e.target.value.toUpperCase();
 });
 </script>
-""", unsafe_allow_html=True)
+</body>
+</html>
+"""
+components.html(hud_html, height=0, scrolling=False)
 
 import warnings
 import shutil
