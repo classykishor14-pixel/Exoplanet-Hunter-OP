@@ -81,14 +81,12 @@ def set_bg_image():
     )
 
 set_bg_image()
-import streamlit.components.v1 as components
-
-components.html("""
-<div id="toggler" style="
+st.markdown("""
+<div id="sb-toggle" style="
     position: fixed;
-    top: 12px;
-    left: 12px;
-    z-index: 999999;
+    top: 14px;
+    left: 14px;
+    z-index: 2147483647;
     cursor: pointer;
     background: rgba(0,255,204,0.15);
     border: 1px solid #00ffcc;
@@ -101,13 +99,20 @@ components.html("""
 ">☰</div>
 
 <script>
-document.getElementById("toggler").addEventListener("click", function() {
-    const btn = window.parent.document.querySelector('[data-testid="stSidebarCollapseButton"] button')
-             || window.parent.document.querySelector('[data-testid="collapsedControl"] button');
-    if (btn) btn.click();
-});
+(function() {
+    function attachToggle() {
+        var toggler = document.getElementById("sb-toggle");
+        if (!toggler) { setTimeout(attachToggle, 300); return; }
+        toggler.addEventListener("click", function() {
+            var btn = document.querySelector('[data-testid="stSidebarCollapseButton"] button')
+                   || document.querySelector('[data-testid="collapsedControl"] button');
+            if (btn) { btn.click(); }
+        });
+    }
+    setTimeout(attachToggle, 500);
+})();
 </script>
-""", height=60)
+""", unsafe_allow_html=True)
 # -------------------------------------
 
 import warnings
