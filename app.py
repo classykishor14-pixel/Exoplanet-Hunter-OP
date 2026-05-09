@@ -422,12 +422,484 @@ st.markdown("""
 section[data-testid="stSidebar"] {
     transition: transform 0.3s ease !important;
 }
+
+/* ============================================================================
+   GLASSMORPHISM HUD OVERLAY — LEFT CONTROL PANEL + BOTTOM TELEMETRY DASHBOARD
+   ============================================================================ */
+
+/* BASE GLASSMORPHISM STYLES */
+.hud-panel {
+    position: fixed;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    background: rgba(5, 12, 30, 0.85);
+    border: 1px solid rgba(0, 212, 255, 0.2);
+    border-radius: 12px;
+    font-family: 'Space Mono', monospace;
+    color: #ffffff;
+    box-shadow: 0 8px 32px rgba(0, 212, 255, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    z-index: 9999;
+}
+
+/* LEFT CONTROL PANEL */
+.hud-control-panel {
+    position: fixed;
+    left: 28px;
+    top: 120px;
+    width: 320px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.hud-control-panel .hud-panel {
+    position: static;
+}
+
+/* SECTION HEADER */
+.hud-section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #00d4ff;
+}
+
+.hud-section-header::before {
+    content: '';
+    width: 24px;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(0, 212, 255, 0.8), rgba(0, 212, 255, 0));
+    flex-shrink: 0;
+}
+
+.hud-section-header::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(0, 212, 255, 0), rgba(0, 212, 255, 0.3));
+}
+
+/* INPUT FIELD */
+.hud-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.hud-input-label {
+    text-transform: uppercase;
+    font-size: 0.70rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: #ffffff;
+}
+
+.hud-input-field {
+    background: rgba(0, 20, 40, 0.6);
+    border: 1px solid rgba(0, 212, 255, 0.15);
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: #00d4ff;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    caret-color: #00ffff;
+    transition: all 0.3s ease;
+}
+
+.hud-input-field:focus {
+    outline: none;
+    border-color: rgba(0, 212, 255, 0.5);
+    background: rgba(0, 30, 60, 0.8);
+    box-shadow: 0 0 12px rgba(0, 212, 255, 0.2), inset 0 0 8px rgba(0, 212, 255, 0.05);
+}
+
+.hud-input-field::placeholder {
+    color: rgba(0, 212, 255, 0.3);
+}
+
+/* SLIDER CONTAINER */
+.hud-slider-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.hud-slider-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.hud-slider-label-text {
+    text-transform: uppercase;
+    font-size: 0.70rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: #ffffff;
+}
+
+.hud-slider-value {
+    font-size: 0.75rem;
+    color: #00d4ff;
+    font-weight: 700;
+    min-width: 70px;
+    text-align: right;
+}
+
+/* PROFESSIONAL NEON SLIDER STYLING */
+.hud-slider {
+    width: 100%;
+    height: 6px;
+    background: linear-gradient(90deg, rgba(0, 212, 255, 0.1), rgba(0, 212, 255, 0.2));
+    border-radius: 3px;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+}
+
+.hud-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #00ffff, #0099ff);
+    border: 2px solid rgba(0, 212, 255, 0.6);
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.6), 0 0 16px rgba(0, 212, 255, 0.3), inset 0 0 4px rgba(0, 255, 255, 0.4);
+    transition: all 0.2s ease;
+}
+
+.hud-slider::-webkit-slider-thumb:hover,
+.hud-slider::-webkit-slider-thumb:active {
+    box-shadow: 0 0 12px rgba(0, 212, 255, 0.9), 0 0 24px rgba(0, 212, 255, 0.5), inset 0 0 6px rgba(0, 255, 255, 0.6);
+    transform: scale(1.2);
+}
+
+.hud-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #00ffff, #0099ff);
+    border: 2px solid rgba(0, 212, 255, 0.6);
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.6), 0 0 16px rgba(0, 212, 255, 0.3), inset 0 0 4px rgba(0, 255, 255, 0.4);
+    transition: all 0.2s ease;
+}
+
+.hud-slider::-moz-range-thumb:hover,
+.hud-slider::-moz-range-thumb:active {
+    box-shadow: 0 0 12px rgba(0, 212, 255, 0.9), 0 0 24px rgba(0, 212, 255, 0.5), inset 0 0 6px rgba(0, 255, 255, 0.6);
+    transform: scale(1.2);
+}
+
+/* BOTTOM TELEMETRY DASHBOARD */
+.hud-telemetry-dashboard {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 40px);
+    max-width: 1200px;
+    padding: 20px;
+}
+
+.hud-telemetry-dashboard .hud-panel {
+    position: static;
+}
+
+/* TELEMETRY GRID */
+.hud-telemetry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+    width: 100%;
+}
+
+/* TELEMETRY ITEM */
+.hud-telemetry-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.hud-telemetry-item::after {
+    content: '';
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(0, 212, 255, 0.3), transparent);
+    margin: 6px 0;
+}
+
+.hud-telemetry-item:last-child::after {
+    display: none;
+}
+
+/* TELEMETRY LABEL */
+.hud-telemetry-label {
+    text-transform: uppercase;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* TELEMETRY VALUE */
+.hud-telemetry-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #00d4ff;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+/* TELEMETRY UNIT */
+.hud-telemetry-unit {
+    font-size: 0.65rem;
+    color: rgba(0, 212, 255, 0.6);
+    margin-top: 2px;
+}
+
+/* STATUS INDICATOR */
+.hud-status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: rgba(0, 212, 255, 0.1);
+    border-radius: 4px;
+    border: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.hud-status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #00ffff;
+    box-shadow: 0 0 6px #00ffff;
+    animation: hud-pulse 2s ease-in-out infinite;
+}
+
+@keyframes hud-pulse {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 6px #00ffff;
+    }
+    50% {
+        opacity: 0.5;
+        box-shadow: 0 0 12px #00ffff;
+    }
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+    .hud-control-panel {
+        left: 14px;
+        top: 100px;
+        width: calc(100vw - 28px);
+        max-width: 280px;
+        padding: 16px;
+    }
+    
+    .hud-telemetry-dashboard {
+        bottom: 10px;
+        width: calc(100% - 20px);
+        padding: 16px;
+    }
+    
+    .hud-telemetry-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+    }
+}
+
 </style>
 
 <input type="checkbox" id="sb-check">
 <label id="sb-label" for="sb-check">☰</label>
 """, unsafe_allow_html=True)
-# -------------------------------------
+# ============================================================================
+# GLASSMORPHISM HUD INITIALIZATION
+# ============================================================================
+# Initialize HUD state variables
+if "hud_target_designator" not in st.session_state:
+    st.session_state.hud_target_designator = "KEPLER-10"
+if "hud_stellar_luminosity" not in st.session_state:
+    st.session_state.hud_stellar_luminosity = 1.0
+if "hud_semi_major_axis" not in st.session_state:
+    st.session_state.hud_semi_major_axis = 0.1
+
+# Render the Glassmorphism HUD Overlay
+st.markdown("""
+<!-- LEFT CONTROL PANEL -->
+<div class="hud-control-panel">
+    <div class="hud-panel">
+        <!-- SECTION HEADER: SCAN CONTROLS -->
+        <div class="hud-section-header">SCAN CONTROLS</div>
+        
+        <!-- TARGET STAR DESIGNATOR INPUT -->
+        <div class="hud-input-group">
+            <label class="hud-input-label">TARGET STAR DESIGNATOR</label>
+            <input 
+                type="text" 
+                class="hud-input-field" 
+                id="hud-target-input"
+                placeholder="e.g. KEPLER-442 B"
+                value="KEPLER-10"
+                maxlength="32"
+            />
+        </div>
+        
+        <!-- DIVIDER LINE -->
+        <div style="height:1px;background:linear-gradient(90deg,rgba(0,212,255,0.15),transparent);margin:12px 0;"></div>
+        
+        <!-- STELLAR LUMINOSITY SLIDER -->
+        <div class="hud-slider-group">
+            <div class="hud-slider-label">
+                <span class="hud-slider-label-text">STELLAR LUMINOSITY</span>
+                <span class="hud-slider-value" id="stellar-lum-val">1.0 ☉</span>
+            </div>
+            <input 
+                type="range" 
+                class="hud-slider" 
+                id="hud-stellar-lum"
+                min="0.1" 
+                max="5.0" 
+                step="0.1" 
+                value="1.0"
+            />
+        </div>
+        
+        <!-- SEMI-MAJOR AXIS SLIDER -->
+        <div class="hud-slider-group">
+            <div class="hud-slider-label">
+                <span class="hud-slider-label-text">SEMI-MAJOR AXIS</span>
+                <span class="hud-slider-value" id="semi-axis-val">0.1 AU</span>
+            </div>
+            <input 
+                type="range" 
+                class="hud-slider" 
+                id="hud-semi-axis"
+                min="0.01" 
+                max="10.0" 
+                step="0.01" 
+                value="0.1"
+            />
+        </div>
+        
+        <!-- DIVIDER LINE -->
+        <div style="height:1px;background:linear-gradient(90deg,rgba(0,212,255,0.15),transparent);margin:12px 0;"></div>
+        
+        <!-- SECTION HEADER: SYSTEM STATUS -->
+        <div class="hud-section-header">SYSTEM STATUS</div>
+        
+        <!-- STATUS INDICATORS -->
+        <div style="display:grid;gap:8px;">
+            <div class="hud-status-indicator">
+                <div class="hud-status-dot"></div>
+                <span style="font-size:0.70rem;text-transform:uppercase;letter-spacing:1px;">ARCHIVE LINKED</span>
+            </div>
+            <div class="hud-status-indicator">
+                <div class="hud-status-dot"></div>
+                <span style="font-size:0.70rem;text-transform:uppercase;letter-spacing:1px;">DETECTION ENGINE</span>
+            </div>
+            <div class="hud-status-indicator">
+                <div class="hud-status-dot"></div>
+                <span style="font-size:0.70rem;text-transform:uppercase;letter-spacing:1px;">ENVIRONMENT OK</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- BOTTOM TELEMETRY DASHBOARD -->
+<div class="hud-telemetry-dashboard">
+    <div class="hud-panel">
+        <div class="hud-telemetry-grid">
+            <!-- OBSERVATION TARGET -->
+            <div class="hud-telemetry-item">
+                <div class="hud-telemetry-label">OBSERVATION TARGET</div>
+                <div class="hud-telemetry-value" id="telem-target">KEPLER-10</div>
+            </div>
+            
+            <!-- STELLAR RADIUS -->
+            <div class="hud-telemetry-item">
+                <div class="hud-telemetry-label">STELLAR RADIUS</div>
+                <div class="hud-telemetry-value" id="telem-radius">1.05 ☉</div>
+            </div>
+            
+            <!-- STELLAR TEMPERATURE -->
+            <div class="hud-telemetry-item">
+                <div class="hud-telemetry-label">STELLAR TEMPERATURE</div>
+                <div class="hud-telemetry-value" id="telem-temp">5757 K</div>
+            </div>
+            
+            <!-- ORBITAL PERIOD -->
+            <div class="hud-telemetry-item">
+                <div class="hud-telemetry-label">ORBITAL PERIOD</div>
+                <div class="hud-telemetry-value" id="telem-period">0.84 D</div>
+            </div>
+            
+            <!-- PLANET MASS -->
+            <div class="hud-telemetry-item">
+                <div class="hud-telemetry-label">PLANET MASS</div>
+                <div class="hud-telemetry-value" id="telem-mass">4.85 ⊕</div>
+            </div>
+            
+            <!-- TRANSIT DEPTH -->
+            <div class="hud-telemetry-item">
+                <div class="hud-telemetry-label">TRANSIT DEPTH</div>
+                <div class="hud-telemetry-value" id="telem-depth">0.84 %</div>
+            </div>
+            
+            <!-- EQUILIBRIUM TEMP -->
+            <div class="hud-telemetry-item">
+                <div class="hud-telemetry-label">EQUILIBRIUM TEMP</div>
+                <div class="hud-telemetry-value" id="telem-eq-temp">1360 K</div>
+            </div>
+            
+            <!-- SIGNAL-TO-NOISE -->
+            <div class="hud-telemetry-item">
+                <div class="hud-telemetry-label">SIGNAL-TO-NOISE</div>
+                <div class="hud-telemetry-value" id="telem-snr">24.6</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- HUD INTERACTIVE CONTROLS -->
+<script>
+// Update display values as sliders move
+document.getElementById('hud-stellar-lum').addEventListener('input', function(e) {
+    document.getElementById('stellar-lum-val').textContent = parseFloat(e.target.value).toFixed(1) + ' ☉';
+});
+
+document.getElementById('hud-semi-axis').addEventListener('input', function(e) {
+    document.getElementById('semi-axis-val').textContent = parseFloat(e.target.value).toFixed(2) + ' AU';
+});
+
+// Update telemetry values based on input
+document.getElementById('hud-target-input').addEventListener('input', function(e) {
+    document.getElementById('telem-target').textContent = e.target.value.toUpperCase();
+});
+
+// Initialize slider values on page load
+window.addEventListener('load', function() {
+    const lumVal = document.getElementById('hud-stellar-lum').value;
+    const axisVal = document.getElementById('hud-semi-axis').value;
+    document.getElementById('stellar-lum-val').textContent = parseFloat(lumVal).toFixed(1) + ' ☉';
+    document.getElementById('semi-axis-val').textContent = parseFloat(axisVal).toFixed(2) + ' AU';
+});
+</script>
+""", unsafe_allow_html=True)
 
 import warnings
 import shutil
