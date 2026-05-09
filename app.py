@@ -81,17 +81,10 @@ def set_bg_image():
     )
 
 set_bg_image()
-st.markdown("""
-<script>
-function toggleSidebar() {
-    // Try both possible Streamlit toggle buttons
-    const btn = document.querySelector('[data-testid="stSidebarCollapseButton"] button') 
-             || document.querySelector('[data-testid="collapsedControl"] button');
-    if (btn) btn.click();
-}
-</script>
+import streamlit.components.v1 as components
 
-<div onclick="toggleSidebar()" style="
+components.html("""
+<div id="toggler" style="
     position: fixed;
     top: 12px;
     left: 12px;
@@ -102,12 +95,19 @@ function toggleSidebar() {
     border-radius: 6px;
     padding: 6px 10px;
     color: #00ffcc;
-    font-family: 'Space Mono', monospace;
+    font-family: monospace;
     font-size: 18px;
-    line-height: 1;
     user-select: none;
 ">☰</div>
-""", unsafe_allow_html=True)
+
+<script>
+document.getElementById("toggler").addEventListener("click", function() {
+    const btn = window.parent.document.querySelector('[data-testid="stSidebarCollapseButton"] button')
+             || window.parent.document.querySelector('[data-testid="collapsedControl"] button');
+    if (btn) btn.click();
+});
+</script>
+""", height=60)
 # -------------------------------------
 
 import warnings
