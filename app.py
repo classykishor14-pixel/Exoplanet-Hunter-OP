@@ -81,9 +81,11 @@ def set_bg_image():
     )
 
 set_bg_image()
-# Fixed toggle button (no JS here)
 st.markdown("""
-<div id="sb-toggle" style="
+<style>
+#sb-check { display: none; }
+
+#sb-label {
     position: fixed;
     top: 14px;
     left: 14px;
@@ -97,22 +99,23 @@ st.markdown("""
     font-family: monospace;
     font-size: 18px;
     user-select: none;
-">☰</div>
-""", unsafe_allow_html=True)
+}
 
-# JS injected via component (can access parent DOM)
-import streamlit.components.v1 as components
-components.html("""
-<script>
-(function tryAttach() {
-    var btn = window.parent.document.querySelector('[data-testid="stSidebarCollapseButton"] button')
-           || window.parent.document.querySelector('[data-testid="collapsedControl"] button');
-    var toggler = window.parent.document.getElementById("sb-toggle");
-    if (!toggler || !btn) { setTimeout(tryAttach, 400); return; }
-    toggler.addEventListener("click", function() { btn.click(); });
-})();
-</script>
-""", height=0)
+/* When checkbox is checked — hide sidebar */
+#sb-check:checked ~ * section[data-testid="stSidebar"],
+#sb-check:checked ~ section[data-testid="stSidebar"] {
+    transform: translateX(-110%) !important;
+    transition: transform 0.3s ease !important;
+}
+
+section[data-testid="stSidebar"] {
+    transition: transform 0.3s ease !important;
+}
+</style>
+
+<input type="checkbox" id="sb-check">
+<label id="sb-label" for="sb-check">☰</label>
+""", unsafe_allow_html=True)
 # -------------------------------------
 
 import warnings
