@@ -1195,6 +1195,305 @@ window.addEventListener('resize', initCharts);
 """
 components.html(hud_html, height=0, scrolling=False)
 
+# ============================================================================
+# 3D HABITABLE ZONE SLIDER — Top-of-Screen Visualization
+# ============================================================================
+hz_3d_html = """
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+#hz-3d-container { position: fixed; top: 0; left: 0; width: 100%; height: 120px; 
+  z-index: 9900; pointer-events: auto; background: linear-gradient(180deg, 
+  rgba(0, 20, 40, 0.4), transparent); }
+#hz-3d-canvas { display: block; width: 100%; height: 100%; }
+.hz-label { position: fixed; top: 8px; left: 40px; font-family: 'Space Mono', monospace;
+  font-size: 0.70rem; font-weight: 700; color: rgba(0, 212, 255, 0.7); text-transform: uppercase;
+  letter-spacing: 1px; z-index: 9901; }
+.hz-value-display { position: fixed; top: 30px; left: 40px; font-family: 'Space Mono', monospace;
+  font-size: 0.85rem; font-weight: 600; color: #00d4ff; text-transform: uppercase;
+  letter-spacing: 0.5px; z-index: 9901; }
+.hz-info { position: fixed; top: 8px; right: 40px; font-family: 'Space Mono', monospace;
+  font-size: 0.65rem; color: rgba(0, 212, 255, 0.5); text-transform: uppercase;
+  letter-spacing: 0.8px; z-index: 9901; line-height: 1.2; text-align: right; }
+</style>
+</head>
+<body>
+<div id="hz-3d-container">
+  <canvas id="hz-3d-canvas"></canvas>
+</div>
+<div class="hz-label">CIRCUMSTELLAR HABITABLE ZONE</div>
+<div class="hz-value-display" id="hz-current-position">SMA: 0.100 AU</div>
+<div class="hz-info">
+  INNER ← GOLDILOCKS ZONE → OUTER<br>
+  HI: <span id="hz-hi-value">45.2</span>/100
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>
+<script>
+// ============================================================================
+// 3D HABITABLE ZONE VISUALIZATION ENGINE
+// ============================================================================
+
+const canvas = document.getElementById('hz-3d-canvas');
+let scene, camera, renderer, bandGroup, marker, textMesh;
+
+function initHZScene() {
+  // Scene setup
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x000000);
+  scene.fog = new THREE.FogExp2(0x000000, 0.1);
+
+  camera = new THREE.PerspectiveCamera(45, window.innerWidth / 120, 0.1, 1000);
+  camera.position.z = 8;
+
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setSize(window.innerWidth, 120);
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setClearAlpha(0);
+
+  // Lighting
+  const ambientLight = new THREE.AmbientLight(0x0088ff, 0.3);
+  scene.add(ambientLight);
+
+  const pointLight = new THREE.PointLight(0x00ff88, 1.0, 50);
+  pointLight.position.set(5, 2, 3);
+  scene.add(pointLight);
+
+  // Create band group
+  bandGroup = new THREE.Group();
+  scene.add(bandGroup);
+
+  // Create gradient band (outer edge = blue, center = green, inner = amber)
+  const bandSegments = 40;
+  const bandGeometry = new THREE.BufferGeometry();
+  const positions = [];
+  const colors = [];
+
+  // Band stretches from -6 to +6 in X, with Y variation for 3D effect
+  for (let i = 0; i <= bandSegments; i++) {
+    const x = -6 + (i / bandSegments) * 12;
+    
+    // Outer edge (top) - Blue
+    positions.push(x, 0.8, -0.1);
+    const blueT = Math.sin((x + 6) / 12 * Math.PI);
+    colors.push(blueT * 0.2, blueT * 0.6, 1.0);
+    
+    // Inner edge (bottom) - Amber
+    positions.push(x, -0.8, -0.1);
+    const amberT = 1 - Math.sin((x + 6) / 12 * Math.PI);
+    colors.push(amberT * 1.0, amberT * 0.7, 0.0);
+  }
+
+  bandGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+  bandGeometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
+
+  const bandMaterial = new THREE.LineBasicMaterial({ 
+    vertexColors: true, 
+    linewidth: 80,
+    transparent: true,
+    opacity: 0.7
+  });
+
+  const band = new THREE.LineSegments(bandGeometry, bandMaterial);
+  bandGroup.add(band);
+
+  // Center green band (habitable zone core)
+  const coreGeometry = new THREE.BufferGeometry();
+  const corePositions = [];
+  const coreColors = [];
+
+  for (let i = 0; i <= bandSegments; i++) {
+    const x = -6 + (i / bandSegments) * 12;
+    // Center band - bright green
+    corePositions.push(x, 0.2, 0.05);
+    coreColors.push(0.0, 1.0, 0.4);
+    
+    corePositions.push(x, -0.2, 0.05);
+    coreColors.push(0.0, 1.0, 0.4);
+  }
+
+  coreGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(corePositions), 3));
+  coreGeometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(coreColors), 3));
+
+  const coreMaterial = new THREE.LineBasicMaterial({ 
+    vertexColors: true, 
+    linewidth: 120,
+    transparent: true,
+    opacity: 0.9
+  });
+
+  const coreBand = new THREE.LineSegments(coreGeometry, coreMaterial);
+  bandGroup.add(coreBand);
+
+  // Create glowing marker (torus)
+  const torusGeometry = new THREE.TorusGeometry(0.3, 0.08, 16, 16);
+  const markerMaterial = new THREE.MeshStandardMaterial({
+    color: 0x00ffff,
+    emissive: 0x00ffff,
+    emissiveIntensity: 0.8,
+    metalness: 0.8,
+    roughness: 0.2
+  });
+  marker = new THREE.Mesh(torusGeometry, markerMaterial);
+  marker.position.set(0, 0, 0.2);
+  bandGroup.add(marker);
+
+  // Add glow sphere around marker
+  const glowGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+  const glowMaterial = new THREE.MeshBasicMaterial({
+    color: 0x00ffff,
+    transparent: true,
+    opacity: 0.15,
+    wireframe: true
+  });
+  const glowSphere = new THREE.Mesh(glowGeometry, glowMaterial);
+  glowSphere.position.copy(marker.position);
+  bandGroup.add(glowSphere);
+
+  // Create canvas texture for holographic text
+  const canvas2d = document.createElement('canvas');
+  canvas2d.width = 512;
+  canvas2d.height = 256;
+  const ctx = canvas2d.getContext('2d');
+  ctx.font = 'bold 120px "Space Mono", monospace';
+  ctx.fillStyle = 'rgba(0, 212, 255, 0.8)';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('HI: 45.2', 256, 128);
+  ctx.strokeStyle = 'rgba(0, 212, 255, 0.4)';
+  ctx.lineWidth = 2;
+  ctx.strokeText('HI: 45.2', 256, 128);
+
+  const texture = new THREE.CanvasTexture(canvas2d);
+  const textMaterial = new THREE.MeshStandardMaterial({
+    map: texture,
+    emissive: 0x00ffff,
+    emissiveIntensity: 0.5,
+    metalness: 0.7,
+    roughness: 0.3,
+    transparent: true
+  });
+
+  const textGeometry = new THREE.PlaneGeometry(4, 1.2);
+  textMesh = new THREE.Mesh(textGeometry, textMaterial);
+  textMesh.position.set(0, 1.5, 0.1);
+  bandGroup.add(textMesh);
+
+  // Animation loop
+  function animate() {
+    requestAnimationFrame(animate);
+    marker.rotation.x += 0.02;
+    marker.rotation.y += 0.03;
+    textMesh.rotation.z = Math.sin(Date.now() * 0.001) * 0.05;
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  // Handle window resize
+  window.addEventListener('resize', () => {
+    renderer.setSize(window.innerWidth, 120);
+    camera.aspect = window.innerWidth / 120;
+    camera.updateProjectionMatrix();
+  });
+}
+
+// Update marker position based on Semi-Major Axis
+function updateMarkerPosition(semeMajorAxis) {
+  // Map 0.01-10.0 AU to -6 to +6 in scene
+  const normalizedSMA = (Math.log10(semeMajorAxis) - Math.log10(0.01)) / 
+                        (Math.log10(10) - Math.log10(0.01));
+  const x = -6 + normalizedSMA * 12;
+  
+  // Clamp to band range
+  const clampedX = Math.max(-5.8, Math.min(5.8, x));
+  
+  // Update marker position with smooth animation
+  if (marker) {
+    marker.position.x = clampedX;
+  }
+
+  // Calculate Habitability Index (simplified)
+  const hzInnerAU = 0.98;
+  const hzOuterAU = 1.64;
+  const optInnerAU = 0.67;
+  const optOuterAU = 1.85;
+
+  let hiScore = 0;
+  if (semeMajorAxis >= optInnerAU && semeMajorAxis <= optOuterAU) {
+    hiScore = 85 - Math.abs(semeMajorAxis - 1.0) * 40;
+  } else if (semeMajorAxis >= hzInnerAU && semeMajorAxis <= hzOuterAU) {
+    hiScore = 65 - Math.abs(semeMajorAxis - 1.0) * 30;
+  } else if (semeMajorAxis > 0.5 && semeMajorAxis < 3.0) {
+    hiScore = 30;
+  } else {
+    hiScore = 5;
+  }
+
+  hiScore = Math.max(0, Math.min(100, hiScore));
+  document.getElementById('hz-hi-value').textContent = hiScore.toFixed(1);
+  document.getElementById('hz-current-position').textContent = 'SMA: ' + semeMajorAxis.toFixed(3) + ' AU';
+
+  // Update holographic text
+  if (textMesh) {
+    const canvas2d = document.createElement('canvas');
+    canvas2d.width = 512;
+    canvas2d.height = 256;
+    const ctx = canvas2d.getContext('2d');
+    ctx.font = 'bold 120px "Space Mono", monospace';
+    ctx.fillStyle = 'rgba(0, 212, 255, 0.8)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('HI: ' + hiScore.toFixed(1), 256, 128);
+    ctx.strokeStyle = 'rgba(0, 212, 255, 0.4)';
+    ctx.lineWidth = 2;
+    ctx.strokeText('HI: ' + hiScore.toFixed(1), 256, 128);
+    
+    const texture = new THREE.CanvasTexture(canvas2d);
+    textMesh.material.map = texture;
+    textMesh.material.needsUpdate = true;
+  }
+}
+
+// Listen for slider changes
+const semaSlider = parent.document.getElementById('hud-semi-axis');
+if (semaSlider) {
+  semaSlider.addEventListener('input', (e) => {
+    const sma = parseFloat(e.target.value);
+    updateMarkerPosition(sma);
+  });
+}
+
+// Initialize on load
+window.addEventListener('load', () => {
+  initHZScene();
+  updateMarkerPosition(0.1);
+  
+  // Setup mutation observer for slider changes from parent frame
+  const parentContainer = parent.document.body;
+  if (parentContainer) {
+    const observer = new MutationObserver(() => {
+      const slider = parent.document.getElementById('hud-semi-axis');
+      if (slider) {
+        updateMarkerPosition(parseFloat(slider.value));
+      }
+    });
+    observer.observe(parentContainer, { subtree: true, attributes: true, attributeFilter: ['value'] });
+  }
+});
+
+// Initialize if already loaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => initHZScene());
+} else {
+  initHZScene();
+}
+</script>
+</body>
+</html>
+"""
+
+components.html(hz_3d_html, height=120)
+
 import warnings
 import shutil
 import requests
