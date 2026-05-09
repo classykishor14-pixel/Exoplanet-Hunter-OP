@@ -29,15 +29,19 @@ st.set_page_config(
 # --- 3D BACKGROUND INJECTION CODE ---
 import os
 import streamlit.components.v1 as components
+import streamlit as st
 
-def inject_3d_background():
-    three_js_code = """
+def inject_3d_background(planet_category="[GAS]"):
+    cat_map = {"[GAS]": 0, "[LAVA]": 1, "[ROCK]": 2, "[TERR]": 3}
+    p_type = cat_map.get(planet_category, 0)
+
+    three_js_code = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <style>
-            body { margin: 0; padding: 0; overflow: hidden; background-color: #02030a; }
-            canvas { display: block; width: 100vw; height: 100vh; }
+            body {{ margin: 0; padding: 0; overflow: hidden; background-color: #02030a; }}
+            canvas {{ display: block; width: 100vw; height: 100vh; pointer-events: none; }}
         </style>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     </head>
@@ -47,75 +51,289 @@ def inject_3d_background():
             scene.background = new THREE.Color(0x02030a);
             scene.fog = new THREE.FogExp2(0x02030a, 0.001);
             
-            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+            const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2500);
             camera.position.z = 400;
 
-            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            const renderer = new THREE.WebGLRenderer({{ antialias: true, alpha: true }});
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             document.body.appendChild(renderer.domElement);
 
-            const ambientLight = new THREE.AmbientLight(0x00ffff, 0.2);
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x00ffff, 0.15);
             scene.add(ambientLight);
 
-            const tealLight = new THREE.PointLight(0x00ccaa, 0.8, 1500);
+            const tealLight = new THREE.PointLight(0x00ccaa, 0.6, 1500);
             tealLight.position.set(-300, 300, 200);
             scene.add(tealLight);
 
-            const starLight = new THREE.PointLight(0xffffff, 2.0, 3000);
-            starLight.position.set(600, 400, -600);
-            starLight.castShadow = true;
+            const starLight = new THREE.PointLight(0xffffff, 2.5, 3000);
+            starLight.position.set(600, 200, 200);
             scene.add(starLight);
 
+            // Starfield
             const starGeo = new THREE.BufferGeometry();
-            const starCount = 4000;
+            const starCount = 3000;
             const starPos = new Float32Array(starCount * 3);
-            for(let i=0;i<starCount*3;i++) {
+            for(let i=0;i<starCount*3;i++) {{
                 starPos[i] = (Math.random() - 0.5) * 2500;
-            }
+            }}
             starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-            
-            const starMat = new THREE.PointsMaterial({
-                color: 0xffffff,
-                size: 1.5,
-                transparent: true,
-                opacity: 0.9
-            });
+            const starMat = new THREE.PointsMaterial({{ color: 0xffffff, size: 1.5, transparent: true, opacity: 0.8 }});
             const stars = new THREE.Points(starGeo, starMat);
             scene.add(stars);
 
-            let mouseX = 0;
-            let mouseY = 0;
-            
-            try {
-                window.parent.document.addEventListener('mousemove', (e) => {
-                    mouseX = (e.clientX - window.innerWidth / 2) * 0.05;
-                    mouseY = (e.clientY - window.innerHeight / 2) * 0.05;
-                });
-            } catch(e) {
-                document.addEventListener('mousemove', (e) => {
-                    mouseX = (e.clientX - window.innerWidth / 2) * 0.05;
-                    mouseY = (e.clientY - window.innerHeight / 2) * 0.05;
-                });
-            }
+            // --- PLANET SHADERS ---
+            const vertexShader = `
+                varying vec2 vUv;
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+                void main() {{
+                    vUv = uv;
+                    vNormal = normalize(normalMatrix * normal);
+                    vPosition = position;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }}
+            `;
 
-            function animate() {
+            const fragmentShader = `
+                uniform int u_planetType;
+                uniform float u_time;
+                varying vec2 vUv;
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+
+                vec4 permute(vec4 x){{return mod(((x*34.0)+1.0)*x, 289.0);}}
+                vec4 taylorInvSqrt(vec4 r){{return 1.79284291400159 - 0.85373472095314 * r;}}
+                float snoise(vec3 v){{ 
+                  const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
+                  const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
+                  vec3 i  = floor(v + dot(v, C.yyy) );
+                  vec3 x0 =   v - i + dot(i, C.xxx) ;
+                  vec3 g = step(x0.yzx, x0.xyz);
+                  vec3 l = 1.0 - g;
+                  vec3 i1 = min( g.xyz, l.zxy );
+                  vec3 i2 = max( g.xyz, l.zxy );
+                  vec3 x1 = x0 - i1 + 1.0 * C.xxx;
+                  vec3 x2 = x0 - i2 + 2.0 * C.xxx;
+                  vec3 x3 = x0 - 1.0 + 3.0 * C.xxx;
+                  i = mod(i, 289.0 ); 
+                  vec4 p = permute( permute( permute( 
+                             i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
+                           + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) 
+                           + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
+                  float n_ = 1.0/7.0; 
+                  vec3  ns = n_ * D.wyz - D.xzx;
+                  vec4 j = p - 49.0 * floor(p * ns.z *ns.z);
+                  vec4 x_ = floor(j * ns.z);
+                  vec4 y_ = floor(j - 7.0 * x_ );
+                  vec4 x = x_ *ns.x + ns.yyyy;
+                  vec4 y = y_ *ns.x + ns.yyyy;
+                  vec4 h = 1.0 - abs(x) - abs(y);
+                  vec4 b0 = vec4( x.xy, y.xy );
+                  vec4 b1 = vec4( x.zw, y.zw );
+                  vec4 s0 = floor(b0)*2.0 + 1.0;
+                  vec4 s1 = floor(b1)*2.0 + 1.0;
+                  vec4 sh = -step(h, vec4(0.0));
+                  vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
+                  vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
+                  vec3 p0 = vec3(a0.xy,h.x);
+                  vec3 p1 = vec3(a0.zw,h.y);
+                  vec3 p2 = vec3(a1.xy,h.z);
+                  vec3 p3 = vec3(a1.zw,h.w);
+                  vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+                  p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+                  vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+                  m = m * m;
+                  return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3) ) );
+                }}
+
+                float fbm(vec3 x) {{
+                    float v = 0.0;
+                    float a = 0.5;
+                    vec3 shift = vec3(100.0);
+                    for (int i = 0; i < 5; ++i) {{
+                        v += a * snoise(x);
+                        x = x * 2.0 + shift;
+                        a *= 0.5;
+                    }}
+                    return v;
+                }}
+
+                void main() {{
+                    vec3 pos = vPosition * 0.02;
+                    vec3 color = vec3(0.0);
+                    
+                    vec3 lightDir = normalize(vec3(1.0, 0.2, 0.5));
+                    float diff = max(dot(vNormal, lightDir), 0.0);
+                    float amb = 0.05;
+                    
+                    if (u_planetType == 0) {{ // Gas Giant
+                        float bands = sin(pos.y * 12.0 + fbm(pos * 2.0) * 2.5);
+                        vec3 col1 = vec3(0.7, 0.5, 0.3);
+                        vec3 col2 = vec3(0.9, 0.8, 0.6);
+                        vec3 col3 = vec3(0.4, 0.2, 0.1);
+                        color = mix(col1, col2, bands * 0.5 + 0.5);
+                        color = mix(color, col3, fbm(pos * 4.0 + vec3(u_time*0.2)));
+                    }} else if (u_planetType == 1) {{ // Lava World
+                        float crack = abs(fbm(pos * 3.0));
+                        crack = smoothstep(0.01, 0.08, crack);
+                        vec3 crust = vec3(0.08, 0.06, 0.06);
+                        vec3 lava = vec3(1.2, 0.4, 0.0) * (1.2 + 0.3 * sin(u_time * 1.5 + fbm(pos*10.0)*5.0));
+                        color = mix(lava, crust, crack);
+                        diff = mix(1.0, diff, crack);
+                        amb = mix(1.0, 0.05, crack);
+                    }} else if (u_planetType == 2) {{ // Rocky
+                        float n1 = fbm(pos * 4.0);
+                        float n2 = fbm(pos * 12.0);
+                        vec3 col1 = vec3(0.5, 0.45, 0.4);
+                        vec3 col2 = vec3(0.3, 0.28, 0.25);
+                        color = mix(col1, col2, n1);
+                        color -= n2 * 0.15;
+                    }} else if (u_planetType == 3) {{ // Super-Earth
+                        float n1 = fbm(pos * 2.5);
+                        float ocean = smoothstep(0.0, 0.1, n1);
+                        vec3 water = vec3(0.0, 0.25, 0.55);
+                        vec3 land = vec3(0.15, 0.4, 0.2);
+                        vec3 cloud = vec3(0.9);
+                        float nCloud = fbm(pos * 3.5 + vec3(u_time * 0.1));
+                        color = mix(water, land, ocean);
+                        float cloudCover = smoothstep(0.3, 0.7, nCloud);
+                        color = mix(color, cloud, cloudCover);
+                    }}
+
+                    vec3 viewDir = normalize(vec3(0.0, 0.0, 1.0) - vPosition);
+                    vec3 halfDir = normalize(lightDir + viewDir);
+                    float spec = pow(max(dot(vNormal, halfDir), 0.0), 32.0);
+                    if (u_planetType == 1 || u_planetType == 3) spec *= 0.8;
+                    else spec *= 0.1;
+
+                    vec3 finalColor = color * (diff + amb) + vec3(spec * 0.5);
+                    gl_FragColor = vec4(finalColor, 1.0);
+                }}
+            `;
+
+            // Planet Setup
+            const planetGroup = new THREE.Group();
+            
+            const sphereGeo = new THREE.SphereGeometry(60, 64, 64);
+            const planetMat = new THREE.ShaderMaterial({{
+                vertexShader: vertexShader,
+                fragmentShader: fragmentShader,
+                uniforms: {{
+                    u_planetType: {{ value: {p_type} }},
+                    u_time: {{ value: 0.0 }}
+                }}
+            }});
+            const planet = new THREE.Mesh(sphereGeo, planetMat);
+            planetGroup.add(planet);
+
+            // Atmosphere (Fresnel Glow)
+            const atmoGeo = new THREE.SphereGeometry(62.5, 64, 64);
+            const atmoMat = new THREE.ShaderMaterial({{
+                vertexShader: `
+                    varying vec3 vNormal;
+                    void main() {{
+                        vNormal = normalize(normalMatrix * normal);
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }}
+                `,
+                fragmentShader: `
+                    varying vec3 vNormal;
+                    void main() {{
+                        float intensity = pow(0.65 - dot(vNormal, vec3(0, 0, 1.0)), 3.0);
+                        vec3 glowColor = vec3(0.0, 0.6, 1.0);
+                        if ({p_type} == 1) glowColor = vec3(1.0, 0.3, 0.0);
+                        else if ({p_type} == 0) glowColor = vec3(0.8, 0.6, 0.4);
+                        else if ({p_type} == 2) glowColor = vec3(0.5, 0.5, 0.5);
+                        gl_FragColor = vec4(glowColor, intensity * 1.5);
+                    }}
+                `,
+                blending: THREE.AdditiveBlending,
+                side: THREE.BackSide,
+                transparent: true,
+                depthWrite: false
+            }});
+            const atmosphere = new THREE.Mesh(atmoGeo, atmoMat);
+            planetGroup.add(atmosphere);
+
+            // Orbital Ring
+            if ({p_type} === 0 || {p_type} === 2) {{
+                const ringGeo = new THREE.RingGeometry(85, 115, 64);
+                const ringMat = new THREE.MeshBasicMaterial({{
+                    color: ({p_type}===0) ? 0xccbbaa : 0x777777,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.25
+                }});
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.rotation.x = Math.PI / 2 - 0.2;
+                ring.rotation.y = 0.2;
+                planetGroup.add(ring);
+            }}
+
+            planetGroup.position.set(120, 0, 100);
+            scene.add(planetGroup);
+
+            // --- INTERACTION ---
+            let isDragging = false;
+            let previousMousePosition = {{ x: 0, y: 0 }};
+            let targetRotationX = 0;
+            let targetRotationY = 0;
+
+            const onMouseDown = (e) => {{ isDragging = true; }};
+            const onMouseUp = (e) => {{ isDragging = false; }};
+            const onMouseMove = (e) => {{
+                if (isDragging) {{
+                    const deltaMove = {{
+                        x: e.clientX - previousMousePosition.x,
+                        y: e.clientY - previousMousePosition.y
+                    }};
+                    targetRotationY += deltaMove.x * 0.01;
+                    targetRotationX += deltaMove.y * 0.01;
+                }}
+                previousMousePosition = {{ x: e.clientX, y: e.clientY }};
+            }};
+
+            try {{
+                const parentDoc = window.parent.document;
+                parentDoc.addEventListener('mousedown', onMouseDown);
+                parentDoc.addEventListener('mouseup', onMouseUp);
+                parentDoc.addEventListener('mousemove', onMouseMove);
+            }} catch(e) {{
+                document.addEventListener('mousedown', onMouseDown);
+                document.addEventListener('mouseup', onMouseUp);
+                document.addEventListener('mousemove', onMouseMove);
+            }}
+
+            const clock = new THREE.Clock();
+
+            function animate() {{
                 requestAnimationFrame(animate);
-                camera.position.z -= 0.15;
-                if(camera.position.z < -600) camera.position.z = 400;
-                
-                camera.position.x += (mouseX - camera.position.x) * 0.02;
-                camera.position.y += (-mouseY - camera.position.y) * 0.02;
-                camera.lookAt(scene.position);
+                const delta = clock.getDelta();
+                const time = clock.getElapsedTime();
+
+                planetMat.uniforms.u_time.value = time;
+
+                if(!isDragging) {{
+                    targetRotationY += 0.002;
+                }}
+
+                planetGroup.rotation.y += (targetRotationY - planetGroup.rotation.y) * 0.1;
+                planetGroup.rotation.x += (targetRotationX - planetGroup.rotation.x) * 0.1;
+
+                camera.position.z -= 0.05;
+                if(camera.position.z < -200) camera.position.z = 400;
 
                 renderer.render(scene, camera);
-            }
+            }}
             animate();
 
-            window.addEventListener('resize', () => {
+            window.addEventListener('resize', () => {{
                 camera.aspect = window.innerWidth / window.innerHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
-            });
+            }});
         </script>
     </body>
     </html>
@@ -172,7 +390,8 @@ def inject_3d_background():
         unsafe_allow_html=True
     )
 
-inject_3d_background()
+if "planet_category" not in st.session_state: st.session_state.planet_category = "[GAS]"
+inject_3d_background(st.session_state.planet_category)
 st.markdown("""
 <style>
 #sb-check { display: none; }
@@ -2671,6 +2890,11 @@ snr        = float(power.max()) / float(np.median(power)) if np.median(power) > 
 # ── Pre-compute all derived science needed for the Profile Card ──────────────
 _planet_radius_earth = estimate_planet_radius_earth(best_depth, star_radius_solar)
 _comp                = get_planet_composition(planet_mass_earth, _planet_radius_earth)
+
+# Update 3D background if the planet category changes
+if st.session_state.planet_category != _comp["category"]:
+    st.session_state.planet_category = _comp["category"]
+    st.rerun()
 
 _star_mass_solar     = star_luminosity_solar ** 0.25
 _sma_kepler_au       = (best_period / 365.25) ** (2.0 / 3.0) * _star_mass_solar ** (1.0 / 3.0)
