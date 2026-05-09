@@ -26,36 +26,128 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# --- NEW BACKGROUND INJECTION CODE ---
+# --- 3D BACKGROUND INJECTION CODE ---
 import os
-import base64
+import streamlit.components.v1 as components
 
-def set_bg_image():
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    bg_path = os.path.join(current_dir, "BG.png")
-    
-    with open(bg_path, "rb") as f:
-        encoded_string = base64.b64encode(f.read()).decode()
+def inject_3d_background():
+    three_js_code = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body { margin: 0; padding: 0; overflow: hidden; background-color: #02030a; }
+            canvas { display: block; width: 100vw; height: 100vh; }
+        </style>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    </head>
+    <body>
+        <script>
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x02030a);
+            scene.fog = new THREE.FogExp2(0x02030a, 0.001);
+            
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.z = 400;
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0x00ffff, 0.2);
+            scene.add(ambientLight);
+
+            const tealLight = new THREE.PointLight(0x00ccaa, 0.8, 1500);
+            tealLight.position.set(-300, 300, 200);
+            scene.add(tealLight);
+
+            const starLight = new THREE.PointLight(0xffffff, 2.0, 3000);
+            starLight.position.set(600, 400, -600);
+            starLight.castShadow = true;
+            scene.add(starLight);
+
+            const starGeo = new THREE.BufferGeometry();
+            const starCount = 4000;
+            const starPos = new Float32Array(starCount * 3);
+            for(let i=0;i<starCount*3;i++) {
+                starPos[i] = (Math.random() - 0.5) * 2500;
+            }
+            starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+            
+            const starMat = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 1.5,
+                transparent: true,
+                opacity: 0.9
+            });
+            const stars = new THREE.Points(starGeo, starMat);
+            scene.add(stars);
+
+            let mouseX = 0;
+            let mouseY = 0;
+            
+            try {
+                window.parent.document.addEventListener('mousemove', (e) => {
+                    mouseX = (e.clientX - window.innerWidth / 2) * 0.05;
+                    mouseY = (e.clientY - window.innerHeight / 2) * 0.05;
+                });
+            } catch(e) {
+                document.addEventListener('mousemove', (e) => {
+                    mouseX = (e.clientX - window.innerWidth / 2) * 0.05;
+                    mouseY = (e.clientY - window.innerHeight / 2) * 0.05;
+                });
+            }
+
+            function animate() {
+                requestAnimationFrame(animate);
+                camera.position.z -= 0.15;
+                if(camera.position.z < -600) camera.position.z = 400;
+                
+                camera.position.x += (mouseX - camera.position.x) * 0.02;
+                camera.position.y += (-mouseY - camera.position.y) * 0.02;
+                camera.lookAt(scene.position);
+
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        </script>
+    </body>
+    </html>
+    """
+    components.html(three_js_code, height=0, width=0)
 
     st.markdown(
-        f"""
+        """
         <style>
+        iframe[title="streamlit_components.v1.components.html"], iframe {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: -9999 !important;
+            pointer-events: none !important;
+            border: none !important;
+        }
+
         .stApp,
         [data-testid="stAppViewContainer"],
-        .cosmic-drift {{
-            background-color: #02030a !important;
-            background-image: url("data:image/png;base64,{encoded_string}") !important;
-            background-size: cover !important;
-            background-position: center !important;
-            background-repeat: no-repeat !important;
-            background-attachment: fixed !important;
-        }}
-
-        [data-testid="stHeader"] {{
+        .main {
             background: transparent !important;
-        }}
+            background-color: transparent !important;
+        }
 
-        [data-testid="collapsedControl"] {{
+        [data-testid="stHeader"] {
+            background: transparent !important;
+        }
+
+        [data-testid="collapsedControl"] {
              display: block !important;
              visibility: visible !important;
              opacity: 1 !important;
@@ -63,24 +155,24 @@ def set_bg_image():
             background: rgba(0, 0, 0, 0.6) !important;
             color: #00ffcc !important;
             border-radius: 4px !important;
-        }}
-        [data-testid="stSidebarCollapseButton"] {{
+        }
+        [data-testid="stSidebarCollapseButton"] {
             display: block !important;
             visibility: visible !important;
             opacity: 1 !important;
             z-index: 99999 !important;
             color: #00ffcc !important;
-            background: rgba(0, 0, 0, 0.6) !important;}}
+            background: rgba(0, 0, 0, 0.6) !important;}
         /* Nuclear option - force sidebar toggle visible */
-        section[data-testid="stSidebar"] > div:first-child {{
+        section[data-testid="stSidebar"] > div:first-child {
             display: block !important;
-        }}
+        }
         </style>
         """,
         unsafe_allow_html=True
     )
 
-set_bg_image()
+inject_3d_background()
 st.markdown("""
 <style>
 #sb-check { display: none; }
@@ -368,33 +460,6 @@ st.markdown("""
    KEN BURNS DRIFT EFFECT - Cosmic Animation
 ════════════════════════════════════════════════════════════════════════════ */
 
-@keyframes cosmicZoom {
-    0% {
-        transform: scale(1.00);
-    }
-    50% {
-        transform: scale(1.12);
-    }
-    100% {
-        transform: scale(1.00);
-    }
-}
-
-@keyframes starDrift {
-    0% {
-        transform: translate(0%, 0%) scale(1);
-        opacity: 0.5;
-    }
-    50% {
-        transform: translate(-2%, -1.5%) scale(1.08);
-        opacity: 0.9;
-    }
-    100% {
-        transform: translate(0%, 0%) scale(1);
-        opacity: 0.5;
-    }
-}
-
 @keyframes scanline {
     0% {
         transform: translateY(-100%);
@@ -402,47 +467,6 @@ st.markdown("""
     100% {
         transform: translateY(100%);
     }
-}
-
-.cosmic-drift {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -2;
-    pointer-events: none;
-    animation: cosmicZoom 28s ease-in-out infinite alternate;
-    will-change: transform;
-    background-color: #02030a;
-    background-size: cover !important;
-    background-position: center !important;
-    background-repeat: no-repeat !important;
-    background-attachment: fixed !important;
-}
-
-.star-drift {
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    animation: starDrift 35s ease-in-out infinite alternate;
-}
-
-.star-drift::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    /* Dark overlay so satellite images show through but remain readable behind the UI */
-    background: linear-gradient(
-        180deg,
-        rgba(2, 4, 14, 0.60) 0%,
-        rgba(2, 4, 14, 0.55) 33.33%,
-        rgba(2, 4, 14, 0.58) 66.66%,
-        rgba(2, 4, 14, 0.60) 100%
-    );
-    background-size: 100% 100%;
-    background-repeat: no-repeat;
 }
 
 /* Optional CRT scanline effect (uncomment to enable) */
@@ -1100,9 +1124,6 @@ div.element-container div.stAlert {
 }
 .ppc-ticker-inner span { color: #00aabb; margin: 0 3px; }
 </style>
-
-<div class="cosmic-drift"></div>
-<div class="star-drift"></div>
 """, unsafe_allow_html=True)
 
 # ── Sidebar state lock (session state + JS belt-and-suspenders) ───────────────
@@ -1284,7 +1305,7 @@ def get_planet_composition(planet_mass: float, planet_radius: float) -> dict:
 
     if planet_radius > 4.0 or density_gcc < 0.5:
         category    = "Gas Giant"
-        emoji       = "🪐"
+        emoji       = "[GAS]"
         description = (
             "H/He gas-dominated envelope. No solid surface. "
             "Similar to Jupiter or Saturn in our Solar System."
@@ -1293,7 +1314,7 @@ def get_planet_composition(planet_mass: float, planet_radius: float) -> dict:
 
     elif density_gcc >= 7.5 and planet_radius < 1.6:
         category    = "Lava World"
-        emoji       = "🌋"
+        emoji       = "[LAVA]"
         description = (
             "Extreme density suggests an iron-rich or desiccated interior, "
             "possibly hosting a global magma ocean (e.g. Kepler-10b, 55 Cnc e)."
@@ -1302,7 +1323,7 @@ def get_planet_composition(planet_mass: float, planet_radius: float) -> dict:
 
     elif planet_radius < 1.6 and density_gcc >= 3.5:
         category    = "Rocky"
-        emoji       = "🪨"
+        emoji       = "[ROCK]"
         description = (
             "Silicate/iron-dominated composition, similar to Earth or Mars. "
             "May host a thin atmosphere or bare rock surface."
@@ -1312,7 +1333,7 @@ def get_planet_composition(planet_mass: float, planet_radius: float) -> dict:
     else:
         # Catch-all: sub-Neptune / Super-Earth regime
         category    = "Super-Earth"
-        emoji       = "🌍"
+        emoji       = "[TERR]"
         description = (
             "Intermediate between rocky and gas-rich. Likely a rocky core "
             "wrapped in a thick volatile or water-vapour envelope."
@@ -1398,32 +1419,32 @@ def get_atmosphere_potential(
 
     if planet_radius_earth > 4.0:
         label   = "Thick H/He Envelope"
-        emoji   = "🌫️"
+        emoji   = "[H/He]"
         color   = "#4a7cff"
         note    = "Gas-dominated — no solid surface to walk on."
     elif planet_radius_earth > 1.8 and density_gcc < 3.0:
         label   = "Volatile-Rich Envelope"
-        emoji   = "💨"
+        emoji   = "[VOL]"
         color   = "#00d4ff"
         note    = "Water vapour / H₂ envelope likely; sub-Neptune class."
     elif likelihood_pct >= 65 and hz_in:
         label   = "Earth-like Atmosphere"
-        emoji   = "🌬️"
+        emoji   = "[TERR]"
         color   = "#00ff88"
         note    = "Mass & flux suggest nitrogen/oxygen or CO₂ atmosphere could persist."
     elif likelihood_pct >= 40:
         label   = "Thin Atmosphere"
-        emoji   = "🌀"
+        emoji   = "[THIN]"
         color   = "#ffe66d"
         note    = "Moderate retention; Mars or Venus analogue possible."
     elif flux_ratio > 10.0:
         label   = "Atmosphere Stripped"
-        emoji   = "☢️"
+        emoji   = "[STRIP]"
         color   = "#ff4f2e"
         note    = "High irradiation — photoevaporation likely denuded any primordial atmosphere."
     else:
         label   = "Bare Rock / Tenuous"
-        emoji   = "🪨"
+        emoji   = "[BARE]"
         color   = "#aaaaaa"
         note    = "Insufficient gravity to retain a significant atmosphere."
 
@@ -1840,7 +1861,7 @@ def calculate_habitability_index(
     if flux_ratio > S_inner_optimistic:
         zone_label = "Scorched"
         zone_color = "#ff2200"
-        zone_emoji = "🔥"
+        zone_emoji = "[HOT]"
         hz_score   = 0.0
 
     elif flux_ratio > S_inner_conservative:
@@ -1849,7 +1870,7 @@ def calculate_habitability_index(
         hz_score   = 25.0 * (1.0 - t)
         zone_label = "Hot Edge"
         zone_color = "#ff8800"
-        zone_emoji = "☀️"
+        zone_emoji = "[WARM]"
 
     elif flux_ratio >= S_outer_conservative:
         # Inside the conservative HZ — full score, peak at Earth-like ~1.0
@@ -1857,9 +1878,9 @@ def calculate_habitability_index(
         centre    = 0.75
         sigma_hz  = 0.25
         hz_score  = 55.0 * np.exp(-0.5 * ((flux_ratio - centre) / sigma_hz) ** 2) + 45.0
-        zone_label = "Green Zone  🌿"
+        zone_label = "Green Zone"
         zone_color = "#00ff88"
-        zone_emoji = "🌿"
+        zone_emoji = "[OPT]"
 
     elif flux_ratio >= S_outer_optimistic:
         # Between conservative and optimistic outer edge → cold but possible
@@ -1867,12 +1888,12 @@ def calculate_habitability_index(
         hz_score   = 25.0 * (1.0 - t)
         zone_label = "Cool Edge"
         zone_color = "#4488ff"
-        zone_emoji = "❄️"
+        zone_emoji = "[COOL]"
 
     else:
         zone_label = "Frozen"
         zone_color = "#aaccff"
-        zone_emoji = "🧊"
+        zone_emoji = "[COLD]"
         hz_score   = 0.0
 
     # ── Planet size factor (0–20 pts) ───────────────────────────────────────
@@ -1912,7 +1933,7 @@ def calculate_habitability_index(
                       "surface liquid water is impossible.",
         "Hot Edge"  : "Inside the optimistic inner HZ. Surface conditions may permit water "
                       "transiently under high atmospheric pressure (Venus analogue).",
-        "Green Zone  🌿" : "Inside the conservative Habitable Zone. Stellar flux allows "
+        "Green Zone" : "Inside the conservative Habitable Zone. Stellar flux allows "
                       "liquid water on the surface. Prime target for atmospheric follow-up.",
         "Cool Edge" : "Between conservative and optimistic outer edges. "
                       "CO₂-rich greenhouse may keep surface above freezing.",
@@ -1929,7 +1950,7 @@ def calculate_habitability_index(
         "hz_opt_inner_au" : round(hz_opt_inner_au, 4),
         "hz_opt_outer_au" : round(hz_opt_outer_au, 4),
         "flux_ratio"      : round(flux_ratio,       4),
-        "zone_label"      : zone_label.replace("  🌿", ""),
+        "zone_label"      : zone_label,
         "zone_color"      : zone_color,
         "zone_emoji"      : zone_emoji,
         "score_breakdown" : {
